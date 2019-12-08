@@ -41,6 +41,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     unsigned int c = 0;
     bool A_is_at_first = false;
     bool B_is_at_first = false;
+    bool A_is_at_Friday_like = false, B_is_at_Friday_like = false, big_is_at_Friday_like;
     bool abort = false;
 
     Day* last_day_A, *last_day_B;
@@ -61,6 +62,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     do {
         current_day = big_family->get_random_improving_day();
     } while (current_day->get_id() == first_day->get_id());
+    big_is_at_Friday_like = current_day->is_Friday_like();
     // assign
     current_cost_variation += big_family->set_assigned_day(current_day);
 
@@ -97,6 +99,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
             //A->check_solution_is_ok();
             return;
         }
+        A_is_at_Friday_like = current_day->is_Friday_like();
         // assign
         current_cost_variation += current_family->set_assigned_day(current_day);
         last_day_A = current_day;
@@ -112,9 +115,9 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     }
     // choose family
     do {
-        current_family = current_day->get_random_removable_family();
+        current_family = current_day->get_random_removable_family(big_is_at_Friday_like);
         c++;
-    } while (current_family->get_id() == big_family->get_id() && c < 10);
+    } while (c < 10 && current_family->get_id() == big_family->get_id());
     if (c == 10){
         for (int i = visited_families.size() - 1; i >= 0; i--)
             visited_families[i]->set_assigned_day(visited_days[i]);
@@ -149,13 +152,16 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
             return;
         }
         // assign
+        B_is_at_Friday_like = current_day->is_Friday_like();
         current_cost_variation += current_family->set_assigned_day(current_day);
         last_day_B = current_day;
     }
 
     bool do_path_A = false; // we really do start with path_A
 
-    while(current_cost_variation < abort_threshold && !(last_day_A->is_feasible() && last_day_B->is_feasible() && first_day->is_feasible()) && !abort){
+    while((current_cost_variation < abort_threshold || A_is_at_Friday_like || B_is_at_Friday_like) &&
+          !(last_day_A->is_feasible() && last_day_B->is_feasible() && first_day->is_feasible() && !A_is_at_Friday_like && !B_is_at_Friday_like) &&
+          !abort){
         do_path_A = 1 - do_path_A;
         if (do_path_A && (A_is_at_first || (last_day_A->is_feasible() && !last_day_B->is_feasible() && !B_is_at_first))) continue;
         if (!do_path_A && (B_is_at_first || (last_day_B->is_feasible() && !last_day_A->is_feasible() && !A_is_at_first))) continue;
@@ -183,7 +189,14 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
             current_cost_variation += temp_cost_variation;
             visited_days.push_back(current_day);
             visited_families.push_back(current_family);
-            if (do_path_A) A_is_at_first = true; else B_is_at_first = true;
+            if (do_path_A) {
+                A_is_at_first = true;
+                A_is_at_Friday_like = false;
+            }
+            else {
+                B_is_at_first = true;
+                B_is_at_Friday_like = false;
+            }
             current_day = first_day;
         } else {
             // undo
@@ -197,14 +210,15 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
                 current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
                 c++;
             } while (c < 10 && (current_day->get_id() == first_day->get_id() ||
-                                current_day->get_id() == current_family->get_assigned_day()->get_id()));// ||
-                                //current_day->get_id() == (do_path_A ? visited_days_B[visited_days_B.size() - 1]->get_id() : visited_days_A[visited_days_A.size() - 1]->get_id())));
-            if (c == 10) {
-                //std::cout<<"abort"<<std::endl;
+                                current_day->get_id() == current_family->get_assigned_day()->get_id()));
+            if (do_path_A)
+                A_is_at_Friday_like = current_day->is_Friday_like();
+            else
+                B_is_at_Friday_like = current_day->is_Friday_like();
+            if (c == 10)
                 abort = true;
-            } else {
+            else
                 current_cost_variation += current_family->set_assigned_day(current_day);
-            }
         }
         if (do_path_A)
             last_day_A = current_day;
@@ -222,7 +236,6 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
 
     count_size_moved_by_twin_paths[big_family->get_nb_people()]++;
     nb_successful_twin_paths++;
-    //std::cout << big_family->get_nb_people() << " " << first_day->get_N() << " " << A_is_at_first << " " << B_is_at_first << std::endl;
     //A->check_solution_is_ok();
 }
 
@@ -273,9 +286,7 @@ void LocalSearch::augmenting_path_move() {
         visited_families.push_back(current_family);
         // now the current day can exceed the limit of 300 so the next current_family
         // is chosen so that its removal would make the day feasible again
-        do {
-            current_family = current_day->get_random_removable_family();
-        } while (is_Friday_like && current_family->get_nb_people() + current_day->get_N() == MIN_NB_PEOPLE_PER_DAY);
+        current_family = current_day->get_random_removable_family(is_Friday_like);
     }
 
     Day* best_possible_fallback = current_family->get_best_possible_day();

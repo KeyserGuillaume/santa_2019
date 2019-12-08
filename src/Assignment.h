@@ -47,7 +47,7 @@ public:
     int add_family(Family* family);
     bool has_removable_family() const;
     Family* get_random_family();
-    Family* get_random_removable_family();
+    Family* get_random_removable_family(const bool & is_Friday_like = false);
     int remove_family(Family* f);
     unsigned int get_N()const{return N;}
     unsigned int get_cost() const{return cost;}
@@ -56,7 +56,7 @@ public:
     unsigned int get_nb_families() const{return assigned_families.size();}
     Family* get_ith_family(unsigned int i) const{return assigned_families[i];}
     void compute_cost();
-    bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 50);}
+    bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 70);}
 };
 
 class Assignment {

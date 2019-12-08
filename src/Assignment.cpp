@@ -25,13 +25,14 @@ Family *Day::get_random_family() {
 }
 
 
-Family *Day::get_random_removable_family() {
+Family *Day::get_random_removable_family(const bool & is_Friday_like) {
     unsigned int j = 0;
     if (N < MIN_NB_PEOPLE_PER_DAY + 10 || N > 300) {
         std::vector<unsigned int> possible_indexes(0);
         for (unsigned int i = 0; i < assigned_families.size(); i++) {
             if (N - assigned_families[i]->get_nb_people() >= MIN_NB_PEOPLE_PER_DAY &&
-                N - assigned_families[i]->get_nb_people() <= MAX_NB_PEOPLE_PER_DAY) {
+                N - assigned_families[i]->get_nb_people() <= MAX_NB_PEOPLE_PER_DAY &&
+                (!is_Friday_like || N - assigned_families[i]->get_nb_people() == MIN_NB_PEOPLE_PER_DAY)) {
                 possible_indexes.push_back(i);
             }
         }
