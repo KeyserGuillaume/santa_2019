@@ -13,9 +13,11 @@ private:
     unsigned int k;
     Assignment* A;
     std::vector<unsigned int> count_order_change = std::vector<unsigned int>(10, 0);
+    std::vector<unsigned int> count_size_moved_by_twin_paths = std::vector<unsigned int>(9, 0);
     unsigned int nb_successful_augmenting_path_0 = 0;
     unsigned int nb_successful_augmenting_path_1 = 0;
     unsigned int nb_successful_augmenting_path_2 = 0;
+    unsigned int nb_successful_twin_paths = 0;
     unsigned int nb_successful_oriented_cycle = 0;
 
     void augmenting_path_move();
