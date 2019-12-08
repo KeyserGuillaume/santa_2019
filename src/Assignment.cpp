@@ -55,11 +55,18 @@ int Day::remove_family(Family *f) {
         if (assigned_families[i]->get_id() == f->get_id()){
             assigned_families[i] = assigned_families[assigned_families.size() - 1];
             assigned_families.pop_back();
-            N -= f->get_nb_people(); // the variation is counted twice on the last day...
-            unsigned int previous_cost = cost + next_day->get_cost();
-            compute_cost();
-            next_day->compute_cost();
-            return cost + next_day->get_cost() - previous_cost;
+            N -= f->get_nb_people();
+            if (next_day->get_id() == id){
+                unsigned int previous_cost = cost;
+                compute_cost();
+                return cost - previous_cost;
+            }
+            else{
+                unsigned int previous_cost = cost + next_day->get_cost();
+                compute_cost();
+                next_day->compute_cost();
+                return cost + next_day->get_cost() - previous_cost;
+            }
         }
     }
     throw std::logic_error("Tried to remove a family from a day it was not assigned to");
@@ -68,10 +75,16 @@ int Day::remove_family(Family *f) {
 int Day::add_family(Family *family) {
     assigned_families.push_back(family);
     N += family->get_nb_people();
-    unsigned int previous_cost = cost + next_day->get_cost();
-    compute_cost();
-    next_day->compute_cost();
-    return cost + next_day->get_cost() - previous_cost;
+    if (next_day->get_id() == id) {
+        unsigned int previous_cost = cost;
+        compute_cost();
+        return cost - previous_cost;
+    } else {
+        unsigned int previous_cost = cost + next_day->get_cost();
+        compute_cost();
+        next_day->compute_cost();
+        return cost + next_day->get_cost() - previous_cost;
+    }
 }
 
 Family::Family(const unsigned int &id,

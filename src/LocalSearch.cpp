@@ -277,7 +277,7 @@ void LocalSearch::augmenting_path_move() {
 
     Day* best_possible_fallback = current_family->get_best_possible_day();
     // the best possible could be the current assigned day in which case this manoeuver is useless
-    if (best_possible_fallback->get_id() != current_day->get_id()){
+    if ((visited_days.size() > 1 || best_possible_fallback->get_id() != first_day->get_id()) && best_possible_fallback->get_id() != current_day->get_id()){
         current_cost_variation += current_family->set_assigned_day(best_possible_fallback);
         if (current_cost_variation <= 0) {
             if (visited_days.size() + 1 < count_order_change.size())

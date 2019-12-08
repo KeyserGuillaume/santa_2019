@@ -12,7 +12,7 @@ class LocalSearch {
 private:
     unsigned int k;
     Assignment* A;
-    std::vector<unsigned int> count_order_change = std::vector<unsigned int>(10, 0);
+    std::vector<unsigned int> count_order_change = std::vector<unsigned int>(13, 0);
     std::vector<unsigned int> count_size_moved_by_twin_paths = std::vector<unsigned int>(9, 0);
     unsigned int nb_successful_augmenting_path_0 = 0;
     unsigned int nb_successful_augmenting_path_1 = 0;
