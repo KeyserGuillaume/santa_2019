@@ -232,6 +232,7 @@ void LocalSearch::augmenting_path_move() {
     std::vector<Day*> visited_days(0);
     std::vector<Family*> visited_families(0);
     bool ongoing = true;
+    bool is_Friday_like = false;
     int current_cost_variation = 0;
     int temp_cost_variation;
 
@@ -255,10 +256,10 @@ void LocalSearch::augmenting_path_move() {
             }
             current_family->set_assigned_day(current_day);
         }
-        // move the family to randomly chosen, but really acceptable preferred day
+        // move the family to randomly chosen preferred day which they could accept
         current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+        is_Friday_like = current_day->is_Friday_like();
         current_cost_variation += current_family->set_assigned_day(current_day);
-        //std::cout << "setting family " << current_family->get_id() << " to day " << current_day->get_id()<<std::endl;
         if (current_day->is_feasible() && current_cost_variation < 0) {
             //A->check_solution_is_ok();
             if (visited_days.size() < count_order_change.size())
@@ -266,13 +267,15 @@ void LocalSearch::augmenting_path_move() {
             nb_successful_augmenting_path_0++;
             return;
         }
-        if (current_cost_variation > abort_threshold){
+        if (current_cost_variation > abort_threshold && !is_Friday_like){
             ongoing = false;
         }
         visited_families.push_back(current_family);
         // now the current day can exceed the limit of 300 so the next current_family
         // is chosen so that its removal would make the day feasible again
-        current_family = current_day->get_random_removable_family();
+        do {
+            current_family = current_day->get_random_removable_family();
+        } while (is_Friday_like && current_family->get_nb_people() + current_day->get_N() == MIN_NB_PEOPLE_PER_DAY);
     }
 
     Day* best_possible_fallback = current_family->get_best_possible_day();

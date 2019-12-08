@@ -37,7 +37,7 @@ class Day{
     unsigned int id;
     unsigned int N = 0;
     unsigned int cost = 0; // no meaning as long as there are less than 125 people
-    Day* previous_day, *next_day;
+    Day* previous_day, *next_day; // if day is i, previous_day is i + 1 and next_day is i - 1
 public:
     std::vector<Family*> assigned_families;
     Day(){next_day = this; previous_day = this; assigned_families.clear();}
@@ -56,6 +56,7 @@ public:
     unsigned int get_nb_families() const{return assigned_families.size();}
     Family* get_ith_family(unsigned int i) const{return assigned_families[i];}
     void compute_cost();
+    bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 50);}
 };
 
 class Assignment {
