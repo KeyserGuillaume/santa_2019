@@ -24,7 +24,7 @@ int main() {
     A.check_solution_is_ok();
     LocalSearch LS(&A);
     //LS.run(10000000, 1000000);
-    LS.run(10000, 1000);
+    LS.run(1000000, 100000);
     //LS.run_on_time_limit(begin + 60*60*CLOCKS_PER_SEC, 1000000);
 
     std::cout << A.get_cost() << std::endl;

@@ -32,11 +32,14 @@ void LocalSearch::jump(){
     twin_paths_move();
 }
 
-void LocalSearch::twin_paths_move(){
+void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     int abort_threshold = 100;
     int current_cost_variation = 0;
     int temp_cost_variation;
     bool has_a_path_moved_to_first = false;
+    bool A_has_stopped = false;
+    bool B_has_stopped = false;
+    bool abort = false;
 //    std::vector<bool> day_was_visited(NB_DAYS, false);
     std::vector<Family*> visited_families_A(0);
     std::vector<Family*> visited_families_B(0);
@@ -53,10 +56,11 @@ void LocalSearch::twin_paths_move(){
     if (big_family->get_k() == 0) return;
 
     current_day = big_family->get_random_improving_day();
+    if (current_day->get_id() == first_day->get_id()) return;
     visited_days_A.push_back(current_day);
     visited_days_B.push_back(current_day);
     current_cost_variation += big_family->set_assigned_day(current_day);
-
+    //std::cout<<"A"<<std::endl;
     do{
         current_family = current_day->get_random_family();
     } while(current_family->get_id() == big_family->get_id());
@@ -65,17 +69,18 @@ void LocalSearch::twin_paths_move(){
         visited_days_A.push_back(first_day);
         current_cost_variation += temp_cost_variation;
         has_a_path_moved_to_first = true;
+        A_has_stopped = true;
     }
     else {
         current_family->set_assigned_day(current_day);
-        current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+        do {
+            current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+        } while (current_day->get_id() == first_day->get_id());
         current_cost_variation += current_family->set_assigned_day(current_day);
         visited_days_A.push_back(current_day);
-        if (current_day->get_id() == first_day->get_id())
-            has_a_path_moved_to_first = true;
     }
     visited_families_A.push_back(current_family);
-
+    //std::cout << "B" << std::endl;
     current_day = big_family->get_assigned_day();
     if (!current_day->has_removable_family()) {
         current_family->set_assigned_day(current_day);
@@ -87,29 +92,46 @@ void LocalSearch::twin_paths_move(){
     do {current_family = current_day->get_random_removable_family();
     c++;
     } while (current_family->get_id() == big_family->get_id() && c < 10);
+    if (c == 10){
+        current_family->set_assigned_day(current_day);
+        big_family->set_assigned_day(first_day);
+        A->check_solution_is_ok();
+        return;
+    }
     temp_cost_variation = current_family->set_assigned_day(first_day);
-    if (temp_cost_variation < abort_threshold && (!has_a_path_moved_to_first || first_day->is_feasible())) {
+    if ((A_has_stopped && first_day->is_feasible() && temp_cost_variation + current_cost_variation > 0) ||
+        (!A_has_stopped && temp_cost_variation < abort_threshold)) {
         visited_days_B.push_back(first_day);
         current_cost_variation += temp_cost_variation;
         has_a_path_moved_to_first = true;
+        B_has_stopped = true;
     }
     else {
         current_family->set_assigned_day(current_day);
-        current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+        do {
+            current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+            c++;
+        } while (c < 10 && (current_day->get_id() == first_day->get_id() || current_day->get_id() == current_family->get_assigned_day()->get_id()));
+        if (c == 10) {
+            visited_families_A[0]->set_assigned_day(big_family->get_assigned_day());
+            big_family->set_assigned_day(first_day);
+            A->check_solution_is_ok();
+            return;
+        }
         current_cost_variation += current_family->set_assigned_day(current_day);
         visited_days_B.push_back(current_day);
-        if (current_day->get_id() == first_day->get_id())
-            has_a_path_moved_to_first = true;
     }
     visited_families_B.push_back(current_family);
 
     bool do_path_A = false; // we really do start with path_A
 
-    while(current_cost_variation < abort_threshold && (
-            !first_day->is_feasible() ||
-            !visited_days_A[visited_days_A.size() - 1]->is_feasible() ||
-            !visited_days_B[visited_days_B.size() - 1]->is_feasible())){
+    while(current_cost_variation < abort_threshold && !(A_has_stopped && B_has_stopped) && !abort){//(
+//            !first_day->is_feasible() ||
+//            !visited_days_A[visited_days_A.size() - 1]->is_feasible() ||
+//            !visited_days_B[visited_days_B.size() - 1]->is_feasible())){
         do_path_A = 1 - do_path_A;
+        if (do_path_A && A_has_stopped) continue;
+        if (!do_path_A && B_has_stopped) continue;
         if (do_path_A){
             visited_days = &visited_days_A;
             visited_families = &visited_families_A;
@@ -123,8 +145,12 @@ void LocalSearch::twin_paths_move(){
 
         if (current_day->is_feasible() && !has_a_path_moved_to_first && (
                 (do_path_A && !visited_days_B[visited_days_B.size() - 1]->is_feasible()) ||
-                (!do_path_A && !visited_days_A[visited_days_A.size() - 1]->is_feasible())))
+                (!do_path_A && !visited_days_A[visited_days_A.size() - 1]->is_feasible()))) {
+            if (do_path_A) A_has_stopped = true; else B_has_stopped = true;
             continue;
+        }
+
+        //if (do_path_A) std::cout << "A" <<std::endl; else std::cout<<"B"<<std::endl;
 
         if (current_day->has_removable_family())
            current_family = current_day->get_random_removable_family();
@@ -132,23 +158,37 @@ void LocalSearch::twin_paths_move(){
             current_family = current_day->get_random_family();
         // check that assigning to first day is not strictly improving
         temp_cost_variation = current_family->set_assigned_day(first_day);
-        if (temp_cost_variation < abort_threshold && (first_day->is_feasible() || !has_a_path_moved_to_first)) {
+        if (((A_has_stopped || B_has_stopped) && first_day->is_feasible() && temp_cost_variation + current_cost_variation > 0) ||
+            (!has_a_path_moved_to_first && temp_cost_variation < abort_threshold)) {
             current_cost_variation += temp_cost_variation;
             visited_days->push_back(first_day);
+            visited_families->push_back(current_family);
             has_a_path_moved_to_first = true;
+            if (do_path_A) A_has_stopped = true; else B_has_stopped = true;
         } else {
             current_family->set_assigned_day(current_day);
-            current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
-            current_cost_variation += current_family->set_assigned_day(current_day);
-            visited_days->push_back(current_day);
-            if (current_day->get_id() == first_day->get_id())
-                has_a_path_moved_to_first = true;
+            c = 0;
+            do {
+                current_day = current_family->get_random_preferred_day_within_threshold(abort_threshold);
+                c++;
+            } while (c < 10 && (current_day->get_id() == first_day->get_id() ||
+                                current_day->get_id() == current_family->get_assigned_day()->get_id() ||
+                                current_day->get_id() == (do_path_A ? visited_days_B[visited_days_B.size() - 1]->get_id() : visited_days_A[visited_days_A.size() - 1]->get_id())));
+            if (c == 10) {
+                //std::cout<<"abort"<<std::endl;
+                abort = true;
+            } else {
+                //std::cout << (current_day->get_id() == current_family->get_assigned_day()->get_id()) << std::endl;
+                current_cost_variation += current_family->set_assigned_day(current_day);
+                visited_days->push_back(current_day);
+                visited_families->push_back(current_family);
+            }
         }
-        visited_families->push_back(current_family);
     }
 
-    if (current_cost_variation > 0){
+    if (!first_day->is_feasible() || current_cost_variation > 0 || !A_has_stopped || !B_has_stopped){
         // undo what we did
+        //std::cout << "undo" << std::endl;
         unsigned int path_A_length = visited_families_A.size();
         unsigned int path_B_length = visited_families_B.size();
         for (int i = std::max(path_A_length - 1, path_B_length - 1); i >= 0; i--) {

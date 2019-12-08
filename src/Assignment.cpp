@@ -97,10 +97,12 @@ void Family::compute_cost() {
 }
 
 int Family::set_assigned_day(Day* d) {
+    //std::cout << "setting family " << id << " from day " << assigned_day->get_id() << " to day " << d->get_id()<<std::endl;
     unsigned int cost_var = assigned_day->remove_family(this) + d->add_family(this);
     unsigned int previous_cost = cost;
     assigned_day = d;
     compute_cost();
+
     //int a = cost_var + cost - previous_cost;
     //if  (a > 100000 || a < -100000) throw std::logic_error("kj");
     return cost_var + cost - previous_cost;
@@ -116,6 +118,7 @@ Day *Family::get_best_possible_day() const {
 }
 
 Day *Family::get_random_preferred_day_within_threshold(const unsigned int &threshold) const {
+    if (k == NB_CHOICES) return preferred_days[rand() % NB_CHOICES];
     for (unsigned int i = k + 1; i < NB_CHOICES; i++)
         if (CONSTANT_COST[i] + n_people*MARGINAL_COST[i] - cost > threshold)
             return preferred_days[rand() % i];
