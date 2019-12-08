@@ -46,3 +46,12 @@ void write_solution_(std::vector<unsigned int> solution, const std::string &file
         write << i << "," << solution[i] + 1 << std::endl; // we restore here days from 1 to 100, never before
     }
 }
+
+
+
+unsigned int nb_chiffres(unsigned int i){
+    if (i < 2)
+        return 1;
+    else
+        return 1 + (unsigned int)(log(i)/log(10));
+}

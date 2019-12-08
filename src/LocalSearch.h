@@ -12,8 +12,16 @@ class LocalSearch {
 private:
     unsigned int k;
     Assignment* A;
+    std::vector<unsigned int> count_order_change = std::vector<unsigned int>(10, 0);
+    unsigned int nb_successful_augmenting_path_0 = 0;
+    unsigned int nb_successful_augmenting_path_1 = 0;
+    unsigned int nb_successful_augmenting_path_2 = 0;
+    unsigned int nb_successful_oriented_cycle = 0;
 
     void augmenting_path_move();
+    void twin_paths_move();
+    void oriented_cycle_move();
+    void oriented_cycle_move_floundering();
     void jump();
 
 public:
@@ -24,4 +32,5 @@ public:
     void display() const{
         std::cout << k << " " << A->get_cost() << std::endl;
     }
+    void stats() const;
 };

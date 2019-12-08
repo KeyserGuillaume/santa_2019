@@ -16,6 +16,15 @@ bool Day::has_removable_family() const {
     }
 }
 
+Family *Day::get_random_family() {
+    unsigned int j = rand() % assigned_families.size();
+    Family* tmp = assigned_families[j];
+    assigned_families[j] = assigned_families[assigned_families.size() - 1];
+    assigned_families[assigned_families.size() - 1] = tmp;
+    return tmp;
+}
+
+
 Family *Day::get_random_removable_family() {
     unsigned int j = 0;
     if (N < MIN_NB_PEOPLE_PER_DAY + 10 || N > 300) {
@@ -37,12 +46,16 @@ Family *Day::get_random_removable_family() {
     return tmp;
 }
 
-unsigned int Day::remove_family(Family *f) {
+void Day::compute_cost() {
+    cost = is_feasible() ? ceil((N - MIN_NB_PEOPLE_PER_DAY)/400.*pow(N, 0.5+(abs(previous_day->get_N() - N)/50.))) : 0;
+}
+
+int Day::remove_family(Family *f) {
     for (int i = assigned_families.size() - 1; i >= 0; i--){
         if (assigned_families[i]->get_id() == f->get_id()){
             assigned_families[i] = assigned_families[assigned_families.size() - 1];
             assigned_families.pop_back();
-            N -= f->get_nb_people(); // the variation is counted twice on the last day
+            N -= f->get_nb_people(); // the variation is counted twice on the last day...
             unsigned int previous_cost = cost + next_day->get_cost();
             compute_cost();
             next_day->compute_cost();
@@ -52,11 +65,7 @@ unsigned int Day::remove_family(Family *f) {
     throw std::logic_error("Tried to remove a family from a day it was not assigned to");
 }
 
-void Day::compute_cost() {
-    cost = ceil((N - MIN_NB_PEOPLE_PER_DAY)/400.*pow(N, 0.5+(abs(previous_day->get_N() - N)/50.)));
-}
-
-unsigned int Day::add_family(Family *family) {
+int Day::add_family(Family *family) {
     assigned_families.push_back(family);
     N += family->get_nb_people();
     unsigned int previous_cost = cost + next_day->get_cost();
@@ -87,12 +96,29 @@ void Family::compute_cost() {
     cost = CONSTANT_COST[k] + n_people*MARGINAL_COST[k];
 }
 
-unsigned int Family::set_assigned_day(Day* d) {
+int Family::set_assigned_day(Day* d) {
     unsigned int cost_var = assigned_day->remove_family(this) + d->add_family(this);
     unsigned int previous_cost = cost;
     assigned_day = d;
     compute_cost();
+    //int a = cost_var + cost - previous_cost;
+    //if  (a > 100000 || a < -100000) throw std::logic_error("kj");
     return cost_var + cost - previous_cost;
+}
+
+Day *Family::get_best_possible_day() const {
+    for (unsigned int i = 0; i < k; i++){
+        Day* res = preferred_days[i];
+        if (res->get_N() + n_people <= MAX_NB_PEOPLE_PER_DAY)
+            return res;
+    }
+    return preferred_days[k];
+}
+
+Day *Family::get_random_preferred_day_within_threshold(const unsigned int &threshold) const {
+    for (unsigned int i = k + 1; i < NB_CHOICES; i++)
+        if (CONSTANT_COST[i] + n_people*MARGINAL_COST[i] - cost > threshold)
+            return preferred_days[rand() % i];
 }
 
 Assignment::Assignment(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<unsigned int> &solution) {
@@ -134,12 +160,16 @@ void Assignment::write_solution(const std::string &filename) const {
     write_solution_(solution, filename);
 }
 
-unsigned int Assignment::get_cost() const {
+unsigned int Assignment::get_cost(){
     unsigned int res1 = 0, res2 = 0;
-    for (unsigned int i = 0; i < NB_FAMILIES; i++)
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        families[i].compute_cost();
         res1 += families[i].get_cost();
-    for (unsigned int j = 0; j < NB_DAYS; j++)
+    }
+    for (unsigned int j = 0; j < NB_DAYS; j++) {
+        days[j].compute_cost();
         res2 += days[j].get_cost();
+    }
     //std::cout << res1 << " " << res2 << std::endl;
     return res1 + res2;
 }
@@ -152,13 +182,6 @@ void Assignment::check_solution_is_ok() {
     }
 }
 
-unsigned int nb_chiffres(unsigned int i){
-    if (i < 2)
-        return 1;
-    else
-        return 1 + (unsigned int)(log(i)/log(10));
-}
-
 void Assignment::stats() const {
     unsigned int res1 = 0, res2 = 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
@@ -166,6 +189,7 @@ void Assignment::stats() const {
     for (unsigned int j = 0; j < NB_DAYS; j++)
         res2 += days[j].get_cost();
     std::cout << "Families Costs : " << res1 << ";   Accounting Costs : " << res2 << std::endl;
+
     std::vector<unsigned int> count(NB_CHOICES + 1, 0);
     std::vector<unsigned int> cost(NB_CHOICES + 1, 0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++){
@@ -184,5 +208,46 @@ void Assignment::stats() const {
     for (unsigned int i=0; i < max_preference + 1; i++){
         std::cout << cost[i] << std::string(7-nb_chiffres(cost[i]) + nb_chiffres(i), ' ');
     }
+    std::cout << std::endl << std::endl;
+
+    std::vector<unsigned int> count_size(9, 0);
+    std::vector<unsigned int> cost_size(9, 0);
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        count_size[families[i].get_nb_people()]++;
+        cost_size[families[i].get_nb_people()]+=families[i].get_cost();
+    }
+    std::cout << "  stats: histogram on the size of the family" << std::endl;
+    for (unsigned int i=0; i < 9; i++)
+        std::cout << i << "       ";
     std::cout << std::endl;
+    for (unsigned int i=0; i < 9; i++){
+        std::cout << count_size[i] << std::string(7-nb_chiffres(count_size[i]) + nb_chiffres(i), ' ');
+    }
+    std::cout << std::endl;
+    for (unsigned int i=0; i < 9; i++){
+        std::cout << cost_size[i] << std::string(7-nb_chiffres(cost_size[i]) + nb_chiffres(i), ' ');
+    }
+    std::cout << std::endl << std::endl;
+
+//    std::vector<unsigned int> count_crowdedness(301, 0);
+//    std::vector<unsigned int> cost_crowdedness(301, 0);
+//    for (unsigned int i = 0; i < NB_DAYS; i++) {
+//        count_crowdedness[days[i].get_N()]++;
+//        for (unsigned int m = 0; m < days[i].get_nb_families(); m++) {
+//            cost_crowdedness[days[i].get_N()] += days[i].get_ith_family(m)->get_cost();
+//        }
+//    }
+//    std::cout << "  stats: histogram on the crowdedness of the day" << std::endl;
+//    for (unsigned int i=0; i < 301; i++)
+//        if (count_crowdedness[i] > 0)
+//            std::cout << i << "       ";
+//    std::cout << std::endl;
+//    for (unsigned int i=0; i < 301; i++)
+//        if (count_crowdedness[i] > 0)
+//            std::cout << count_crowdedness[i] << std::string(7-nb_chiffres(count_crowdedness[i]) + nb_chiffres(i), ' ');
+//    std::cout << std::endl;
+//    for (unsigned int i=0; i < 301; i++)
+//        if (count_crowdedness[i] > 0)
+//            std::cout << cost_crowdedness[i] << std::string(7-nb_chiffres(cost_crowdedness[i]) + nb_chiffres(i), ' ');
+//    std::cout << std::endl;
 }

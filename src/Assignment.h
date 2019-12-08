@@ -16,18 +16,21 @@ private:
     unsigned int k; // the family got their k-th choice (begins at 0, 10 if not one of their choices)
     unsigned int cost;
     Day* assigned_day;
-    void compute_cost();
 public:
     Family(){}
     Family(const unsigned int &id, const unsigned int &n_people, const std::vector<Day*> &preferred_days, Day* assigned_day);
-    unsigned int set_assigned_day(Day* i);
+    int set_assigned_day(Day* i);
     Day* get_assigned_day() const{return assigned_day;}
     unsigned int get_nb_people() const{return n_people;}
     unsigned int get_id() const{return id;}
     unsigned int get_cost() const{return cost;}
     Day* get_ith_preferred_day(const unsigned int &i) const{return preferred_days[i];}
-    Day* get_random_preferred_day() const{return preferred_days[rand()%preferred_days.size()];}
+    Day* get_random_preferred_day(const unsigned int &upper_bound = 7) const{return preferred_days[std::min(NB_CHOICES - 1, rand()%upper_bound)];}
+    Day* get_random_preferred_day_within_threshold(const unsigned int &threshold) const;
+    Day* get_random_improving_day() const{return preferred_days[rand() % k];}
+    Day* get_best_possible_day() const;
     unsigned int get_k()const{return k;}
+    void compute_cost();
 };
 
 class Day{
@@ -35,21 +38,24 @@ class Day{
     unsigned int N = 0;
     unsigned int cost = 0; // no meaning as long as there are less than 125 people
     Day* previous_day, *next_day;
-    void compute_cost();
 public:
     std::vector<Family*> assigned_families;
     Day(){next_day = this; previous_day = this; assigned_families.clear();}
     void set_id(unsigned int i){id = i;}
     void set_previous_day(Day* d){previous_day = d;}
     void set_next_day(Day* d){next_day = d;}
-    unsigned int add_family(Family* family);
+    int add_family(Family* family);
     bool has_removable_family() const;
+    Family* get_random_family();
     Family* get_random_removable_family();
-    unsigned int remove_family(Family* f);
+    int remove_family(Family* f);
     unsigned int get_N()const{return N;}
     unsigned int get_cost() const{return cost;}
     unsigned int get_id(){return id;}
     bool is_feasible(){return N >= MIN_NB_PEOPLE_PER_DAY && N <= MAX_NB_PEOPLE_PER_DAY;}
+    unsigned int get_nb_families() const{return assigned_families.size();}
+    Family* get_ith_family(unsigned int i) const{return assigned_families[i];}
+    void compute_cost();
 };
 
 class Assignment {
@@ -62,7 +68,7 @@ public:
     void stats() const;
     void check_solution_is_ok();
     Day* get_random_day(){return days + rand()%NB_DAYS;}
-    unsigned int get_cost()const;
+    unsigned int get_cost();
     Day* get_ith_day(const unsigned int &i) const{return days + i;}
     Family* get_ith_family(const unsigned int &i) const{return families + i;}
     ~Assignment(){delete[] families; delete[] days;}
