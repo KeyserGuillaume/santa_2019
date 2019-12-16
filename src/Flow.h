@@ -26,7 +26,7 @@ public:
     }
     inline unsigned int get_id() const{return id;}
     unsigned int get_delta_p_size() const{return delta_p.size();}
-    unsigned int get_delta_m() const{return delta_m.size();}
+    unsigned int get_delta_m_size() const{return delta_m.size();}
     Arc* get_ith_incoming(const unsigned int& i){return delta_m[i];}
     Arc* get_ith_outgoing(const unsigned int& i){return delta_p[i];}
 };
@@ -63,10 +63,13 @@ private:
     Vertex* V;
     Arc* A;
     unsigned int n_V, n_A;
+    std::vector<int> distances;
+    std::vector<Arc*> predecessor;
     std::vector<unsigned int> family_indexes, day_indexes;
     unsigned int source_index, sink_index;
 public:
-    Graph(const std::vector<unsigned int> &schedule, unsigned int epsilon = 10);
+    Graph(const std::vector<std::vector<unsigned int>> &family_data);
+    Graph();
     ~Graph(){
         delete [] V;
         delete [] A;
@@ -74,5 +77,10 @@ public:
     bool find_and_apply_augmenting_path();
     void compute_max_flow_min_cost();
     std::vector<unsigned int> get_solution() const;
+    unsigned int get_current_flow() const;
+    std::vector<Arc*> get_shortest_path() const;
+    int get_flow_cost()const;
+    int get_true_flow_cost()const;
+    int init_distances_and_predecessors();
 };
 

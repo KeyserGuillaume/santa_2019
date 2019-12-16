@@ -28,7 +28,9 @@ void LocalSearch::run(const long &nb_iteration, const int &period_display) {
 }
 
 void LocalSearch::jump(){
-    if (rand()%3 == 0)
+    if (rand()%100 == 0)
+        remove_Friday_like();
+    else if (rand()%3 == 0)
         twin_paths_move();
     else
         augmenting_path_move();
@@ -65,6 +67,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     big_is_at_Friday_like = current_day->is_Friday_like();
     // assign
     current_cost_variation += big_family->set_assigned_day(current_day);
+    unsigned int first_day_temporary_cost = first_day->get_cost();
 
     // Initialize A
     // choose family
@@ -132,6 +135,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
         visited_days.push_back(current_day);
         current_cost_variation += temp_cost_variation;
         B_is_at_first = true;
+        last_day_B = first_day;
     }
     else {
         // undo
@@ -376,6 +380,17 @@ void LocalSearch::oriented_cycle_move() {
         current_family->set_assigned_day(current_day);
         current_day = tmp;
     } while(current_day->get_id() != last_id);std::cout<<nb_swaps<<std::endl;
+}
+
+void LocalSearch::remove_Friday_like() {return;
+    if (!A->has_Friday_like() || k > 1000000) return;
+    Day* Friday_like = A->get_random_Friday_like();
+    Family* current_family;
+    for (unsigned int i = 0; i < 30; i++) {
+        current_family = A->get_random_family();
+        if (current_family->is_removable())
+            current_family->set_assigned_day(Friday_like);
+    }
 }
 
 void LocalSearch::stats() const {

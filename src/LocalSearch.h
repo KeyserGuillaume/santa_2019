@@ -23,7 +23,7 @@ private:
     void augmenting_path_move();
     void twin_paths_move();
     void oriented_cycle_move();
-    void oriented_cycle_move_floundering();
+    void remove_Friday_like();
     void jump();
 
 public:

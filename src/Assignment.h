@@ -31,6 +31,7 @@ public:
     Day* get_best_possible_day() const;
     unsigned int get_k()const{return k;}
     void compute_cost();
+    bool is_removable();
 };
 
 class Day{
@@ -56,7 +57,7 @@ public:
     unsigned int get_nb_families() const{return assigned_families.size();}
     Family* get_ith_family(unsigned int i) const{return assigned_families[i];}
     void compute_cost();
-    bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 70);}
+    bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 80);}
 };
 
 class Assignment {
@@ -69,9 +70,13 @@ public:
     void stats() const;
     void check_solution_is_ok();
     Day* get_random_day(){return days + rand()%NB_DAYS;}
+    Family* get_random_family(){return families + rand()%NB_FAMILIES;}
     unsigned int get_cost();
     Day* get_ith_day(const unsigned int &i) const{return days + i;}
     Family* get_ith_family(const unsigned int &i) const{return families + i;}
     ~Assignment(){delete[] families; delete[] days;}
+    bool has_Friday_like() const;
+    unsigned int get_nb_Friday_like() const;
+    Day* get_random_Friday_like() const;
 };
 

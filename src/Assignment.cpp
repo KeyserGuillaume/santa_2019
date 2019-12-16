@@ -49,6 +49,12 @@ Family *Day::get_random_removable_family(const bool & is_Friday_like) {
 
 void Day::compute_cost() {
     cost = is_feasible() ? ceil((N - MIN_NB_PEOPLE_PER_DAY)/400.*pow(N, 0.5+(abs(previous_day->get_N() - N)/50.))) : 0;
+    //cost = 10*floor(cost/10.);
+    // do not try to change 0 with cost (meaning the cost of an unfeasible day would be the cost when last it was feasible)
+    // because then the twin path move will no longer keep the right count of the cost variation (because trying to insert
+    // a family before removing it can make it temporarily feasible with a huge cost (ie if N = 127 and Friday_like),
+    // and then when you set a family to fall back on a reasonable value, you did not expect to get the hugely negative
+    // minus previous cost.
 }
 
 int Day::remove_family(Family *f) {
@@ -112,13 +118,10 @@ void Family::compute_cost() {
 
 int Family::set_assigned_day(Day* d) {
     //std::cout << "setting family " << id << " from day " << assigned_day->get_id() << " to day " << d->get_id()<<std::endl;
-    unsigned int cost_var = assigned_day->remove_family(this) + d->add_family(this);
+    int cost_var = d->add_family(this) + assigned_day->remove_family(this);
     unsigned int previous_cost = cost;
     assigned_day = d;
     compute_cost();
-
-    //int a = cost_var + cost - previous_cost;
-    //if  (a > 100000 || a < -100000) throw std::logic_error("kj");
     return cost_var + cost - previous_cost;
 }
 
@@ -134,8 +137,14 @@ Day *Family::get_best_possible_day() const {
 Day *Family::get_random_preferred_day_within_threshold(const unsigned int &threshold) const {
     if (k == NB_CHOICES) return preferred_days[rand() % NB_CHOICES];
     for (unsigned int i = k + 1; i < NB_CHOICES; i++)
-        if (CONSTANT_COST[i] + n_people*MARGINAL_COST[i] - cost > threshold)
+        if (CONSTANT_COST[i] + n_people * MARGINAL_COST[i] - cost > 1.5*threshold)
             return preferred_days[rand() % i];
+    // we get here when the family has their last preferred day
+    return preferred_days[rand() % NB_CHOICES];
+}
+
+bool Family::is_removable() {
+    return (assigned_day->get_N() - n_people >= MIN_NB_PEOPLE_PER_DAY);
 }
 
 Assignment::Assignment(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<unsigned int> &solution) {
@@ -201,11 +210,16 @@ void Assignment::check_solution_is_ok() {
 
 void Assignment::stats() const {
     unsigned int res1 = 0, res2 = 0;
-    for (unsigned int i = 0; i < NB_FAMILIES; i++)
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        families[i].compute_cost();
         res1 += families[i].get_cost();
-    for (unsigned int j = 0; j < NB_DAYS; j++)
+    }
+    for (unsigned int j = 0; j < NB_DAYS; j++) {
+        days[j].compute_cost();
         res2 += days[j].get_cost();
-    std::cout << "Families Costs : " << res1 << ";   Accounting Costs : " << res2 << std::endl;
+    }
+    std::cout << get_nb_Friday_like() << " Friday-likes in the solution" << std::endl;
+    std::cout << "Families Costs : " << res1 << ";   Accounting Costs : " << res2 << std::endl << std::endl;
 
     std::vector<unsigned int> count(NB_CHOICES + 1, 0);
     std::vector<unsigned int> cost(NB_CHOICES + 1, 0);
@@ -267,4 +281,27 @@ void Assignment::stats() const {
 //        if (count_crowdedness[i] > 0)
 //            std::cout << cost_crowdedness[i] << std::string(7-nb_chiffres(cost_crowdedness[i]) + nb_chiffres(i), ' ');
 //    std::cout << std::endl;
+}
+
+Day *Assignment::get_random_Friday_like() const {
+    std::vector<Day*> possible_results(0);
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        if (days[i].is_Friday_like())
+            possible_results.push_back(days + i);
+    return possible_results[rand() % possible_results.size()];
+}
+
+bool Assignment::has_Friday_like() const {
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        if (days[i].is_Friday_like())
+            return true;
+    return false;
+}
+
+unsigned int Assignment::get_nb_Friday_like() const {
+    unsigned int count = 0;
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        if (days[i].is_Friday_like())
+            count++;
+    return count;
 }
