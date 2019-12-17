@@ -1,6 +1,10 @@
 #pragma once
 #include <string>
 
+enum status {ALLOWED, FORBIDDEN, COMPULSORY};
+
+typedef std::vector<status> preset;
+
 const unsigned int NB_FAMILIES = 5000;
 const unsigned int NB_DAYS = 100;
 const unsigned int NB_CHOICES = 10;

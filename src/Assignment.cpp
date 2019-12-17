@@ -177,6 +177,7 @@ Assignment::Assignment(const std::vector<std::vector<unsigned int>> &family_data
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         days[solution[i]].add_family(families + i);
 
+    get_cost(); // initialize the k of families
 }
 
 void Assignment::write_solution(const std::string &filename) const {

@@ -63,12 +63,15 @@ private:
     Vertex* V;
     Arc* A;
     unsigned int n_V, n_A;
+    unsigned int flow = 0;
+    unsigned int max_possible_flow;
     std::vector<int> distances;
     std::vector<Arc*> predecessor;
     std::vector<unsigned int> family_indexes, day_indexes;
     unsigned int source_index, sink_index;
+    unsigned int presets_costs = 0;
 public:
-    Graph(const std::vector<std::vector<unsigned int>> &family_data);
+    Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
     Graph();
     ~Graph(){
         delete [] V;
@@ -76,11 +79,16 @@ public:
     }
     bool find_and_apply_augmenting_path();
     void compute_max_flow_min_cost();
-    std::vector<unsigned int> get_solution() const;
+   // std::vector<unsigned int> get_solution() const;
     unsigned int get_current_flow() const;
-    std::vector<Arc*> get_shortest_path() const;
+    std::vector<Arc*> get_shortest_path();
     int get_flow_cost()const;
     int get_true_flow_cost()const;
     int init_distances_and_predecessors();
+    void update_distances();
+    void apply_Bellman_Ford(std::queue<Vertex*> &Q);
+    void show_distances();
+    void show_schedule();
+    void check_flow();
 };
 
