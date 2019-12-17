@@ -70,6 +70,7 @@ private:
     std::vector<unsigned int> family_indexes, day_indexes;
     unsigned int source_index, sink_index;
     unsigned int presets_costs = 0;
+    bool can_we_add_zeros_valued_flows = false;
 public:
     Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
     Graph();
@@ -85,6 +86,9 @@ public:
     int get_flow_cost()const;
     int get_true_flow_cost()const;
     int init_distances_and_predecessors();
+    void add_obvious_flows();
+    void add_zero_valued_flows();
+    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns);
     void update_distances();
     void apply_Bellman_Ford(std::queue<Vertex*> &Q);
     void show_distances();

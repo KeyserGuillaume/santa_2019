@@ -45,6 +45,8 @@ int Graph::init_distances_and_predecessors() {
     while (!Q.empty()) {
         apply_Bellman_Ford(Q);
     }
+    if (distances[sink_index] == 0)
+        can_we_add_zeros_valued_flows = true;
 }
 
 Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets) {
@@ -147,12 +149,14 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
     for (unsigned int i = 0; i < n_A; i++){
         A[i].fill_vertex_deltas();
     }
-    init_distances_and_predecessors();
 
     max_possible_flow = 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         if (!is_already_assigned[i])
             max_possible_flow += family_data[i][NB_CHOICES];
+
+    add_obvious_flows();
+    init_distances_and_predecessors();
 }
 
 //std::vector<unsigned int> Graph::get_solution() const {
@@ -218,6 +222,8 @@ void Graph::compute_max_flow_min_cost() {
         i++;
         if (i%30 == 0)
             std::cout << "flow is " << get_current_flow() << " with cost " << get_flow_cost() << " and paths have length " << get_shortest_path().size() << std::endl;
+        if (can_we_add_zeros_valued_flows)
+            add_zero_valued_flows();
     }
 }
 
@@ -317,6 +323,9 @@ void Graph::update_distances() {
     while (!Q.empty()) {
         apply_Bellman_Ford(Q);
     }
+
+    if (distances[sink_index] == 0)
+        can_we_add_zeros_valued_flows = true;
 }
 
 
@@ -442,4 +451,44 @@ void Graph::check_flow() {
         if (a->get_flow() > a->get_capa())
             throw std::logic_error("Why is my flow greater than my capa ?");
     }
+}
+
+
+void Graph::add_obvious_flows() {
+    // flows of value - UPPER_BOUND
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({1, 0}));
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({0, 0, 0}));
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({2, 0, 0}));
+}
+
+
+void Graph::add_zero_valued_flows() {
+    // flows of value 0
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({1, 0, 1}));
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({0, 0, 1, 0}));
+    for (unsigned int i = 0; i < family_indexes.size(); i++)
+        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({2, 0, 1, 0}));
+}
+
+void Graph::add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns) {
+    std::vector<Arc*> path(0);
+    Vertex* w = V + family_index;
+    Arc* a = w->get_ith_incoming(0);
+    if (!a->has_capacity_left()) return;
+    path.push_back(a);
+    unsigned int additional_flow = a->get_capa() - a->get_flow();
+    for (unsigned int i = 0; i < turns.size(); i++){
+        a = w->get_ith_outgoing(turns[i]);
+        if (a->get_cost() > 0 || !a->has_capacity_left()) return;
+        path.push_back(a);
+        additional_flow = std::min(additional_flow, a->get_capa() - a->get_flow());
+        w = a->get_v();
+    }
+    for (unsigned int i = 0; i < path.size(); i++)
+        path[i]->add_to_flow(additional_flow);
 }
