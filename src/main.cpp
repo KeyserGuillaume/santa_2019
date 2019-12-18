@@ -36,10 +36,10 @@ int main() {
 
 
     std::vector<preset> presets = get_empty_presets();
-//    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-//        if (i % 2 != 0)
-//            presets[i] = get_assignation_preset(A.get_ith_family(i)->get_k());
-//    }
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        if (i % 100 != 0 && A.get_ith_family(i)->get_k() < K_MAX)
+            presets[i] = get_assignation_preset(A.get_ith_family(i)->get_k());
+    }
 
     Graph G1 = Graph(family_data, presets);
     G1.check_flow();

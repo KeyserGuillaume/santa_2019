@@ -9,8 +9,7 @@ Graph::Graph() {
     V = new Vertex [n_V];
     n_A = 5;
     A = new Arc [n_A];
-    unsigned int next_vertex_index = 0,
-            next_arc_index = 0;
+    unsigned int next_vertex_index = 0;
     V[next_vertex_index] = Vertex(next_vertex_index);
     next_vertex_index++;
     V[next_vertex_index] = Vertex(next_vertex_index);
@@ -35,7 +34,7 @@ Graph::Graph() {
     max_possible_flow = 3;
 }
 
-int Graph::init_distances_and_predecessors() {
+void Graph::init_distances_and_predecessors() {
     distances = std::vector<int> (n_V, 10*UPPER_BOUND);
     predecessor = std::vector<Arc*>(n_V);
     distances[source_index] = 0;
@@ -49,29 +48,67 @@ int Graph::init_distances_and_predecessors() {
         can_we_add_zeros_valued_flows = true;
 }
 
+void Graph::get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds) const {
+    std::vector<unsigned int> preset_lower_bound(NB_DAYS, 0);
+    std::vector<unsigned int> preset_upper_bound(NB_DAYS, 0);
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        for (unsigned int k = 0; k < K_MAX; k++) {
+            if (presets[i][k] == COMPULSORY) {
+                preset_lower_bound[family_data[i][k]] += family_data[i][NB_CHOICES];
+                preset_upper_bound[family_data[i][k]] += family_data[i][NB_CHOICES];
+            }
+            if (presets[i][k] == ALLOWED) {
+                preset_upper_bound[family_data[i][k]] += family_data[i][NB_CHOICES];
+            }
+        }
+    }
+
+    for (unsigned int i = 0; i < NB_DAYS; i++){
+        upper_bounds[i] = std::min(MAX_NB_PEOPLE_PER_DAY, preset_upper_bound[i]);
+        lower_bounds[i] = std::max(MIN_NB_PEOPLE_PER_DAY, preset_lower_bound[i]);
+    }
+
+    for (unsigned int i = 0; i < NB_DAYS; i++){
+        if (i < NB_DAYS - 1 && lower_bounds[i] > MIN_NB_PEOPLE_PER_DAY && upper_bounds[i] <= lower_bounds[i + 1]){
+            //std::cout << upper_bounds[i] << " " << lower_bounds[i + 1]<<std::endl;
+            unsigned int a;
+            for (unsigned int j = 0; j < 10; j++) {
+                a = lower_bounds[i];
+                lower_bounds[i] = std::max(a, (unsigned int)(std::max(0., ceil(lower_bounds[i + 1] - 50./log(a)*(log(400.*1000./float(a - MIN_NB_PEOPLE_PER_DAY) - 0.5))))));
+            }
+            a = lower_bounds[i];
+            upper_bounds[i + 1] = std::min(upper_bounds[i + 1], (unsigned int)(floor(upper_bounds[i] + 50./log(a)*(log(400.*1000./float(a - MIN_NB_PEOPLE_PER_DAY) - 0.5)))));
+            //std::cout << preset_lower_bound[i] << " " << lower_bounds[i] << " " << upper_bounds[i] << " " << lower_bounds[i + 1] << " " << upper_bounds[i + 1] << " " << preset_upper_bound[i + 1] << std::endl;
+        }
+    }
+}
+
 Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets) {
     // build the graph from right to left
-    unsigned int k_max = 4;
 
     unsigned int nb_already_assigned = 0;
     unsigned int nb_forbidden_assignments = 0;
     std::vector<bool> is_already_assigned (NB_FAMILIES, false);
+    std::vector<unsigned int> lower_bounds(NB_DAYS, 0);
+    std::vector<unsigned int> upper_bounds(NB_DAYS, 0);
+    get_affluence_bounds(family_data, presets, lower_bounds, upper_bounds);
+
     std::vector<unsigned int> presets_schedule(NB_DAYS, 0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++){
-        for (unsigned int k = 0; k < k_max; k++) {
+        for (unsigned int k = 0; k < K_MAX; k++) {
             if (presets[i][k] == COMPULSORY) {
-                presets_schedule[family_data[i][k]] += family_data[i][NB_CHOICES];
                 presets_costs += CONSTANT_COST[k] + family_data[i][NB_CHOICES] * MARGINAL_COST[k];
                 is_already_assigned[i] = true;
                 nb_already_assigned++;
+                presets_schedule[family_data[i][k]] += family_data[i][NB_CHOICES];
             }
             if (presets[i][k] != ALLOWED)
                 nb_forbidden_assignments++;
         }
     }
-    n_V = 1 + NB_FAMILIES - nb_already_assigned + NB_FAMILIES*k_max - nb_forbidden_assignments + 2*NB_DAYS + 1;
+    n_V = 1 + NB_FAMILIES - nb_already_assigned + NB_FAMILIES*K_MAX - nb_forbidden_assignments + 2*NB_DAYS + 1;
     V = new Vertex [n_V];
-    n_A = NB_FAMILIES - nb_already_assigned + 3*NB_FAMILIES*k_max - 3*nb_forbidden_assignments + NB_DAYS*3;
+    n_A = NB_FAMILIES - nb_already_assigned + 3*NB_FAMILIES*K_MAX - 3*nb_forbidden_assignments + NB_DAYS*3;
     A = new Arc [n_A];
     unsigned int next_vertex_index = 0, next_arc_index = 0;
     family_indexes.clear(); day_indexes.clear();
@@ -83,9 +120,9 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
 
     // the days
     for (unsigned int i = 0; i < NB_DAYS; i++){
-        if (presets_schedule[i] > 300) throw std::logic_error("Why do I have too many people assigned to this day ?");
-        unsigned int min_allowed = (unsigned int)(std::max(125 - int(presets_schedule[i]), 0));
-        unsigned int max_allowed = MAX_NB_PEOPLE_PER_DAY - presets_schedule[i];
+        if (presets_schedule[i] > MAX_NB_PEOPLE_PER_DAY) throw std::logic_error("Why do I have too many people assigned to this day ?");
+        unsigned int min_allowed = (unsigned int)(std::max(int(lower_bounds[i]) - int(presets_schedule[i]), 0));
+        unsigned int max_allowed = upper_bounds[i] - presets_schedule[i];
         V[next_vertex_index] = Vertex(next_vertex_index);
         A[next_arc_index] = Arc(
                 next_arc_index,
@@ -121,7 +158,7 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
         family_indexes.push_back(next_vertex_index);
         unsigned int family_index = next_vertex_index;
         next_vertex_index++;
-        for (unsigned int k = 0; k < k_max; k++){
+        for (unsigned int k = 0; k < K_MAX; k++){
             if (presets[i][k] != ALLOWED) continue;
             unsigned int j = family_data[i][k];
             V[next_vertex_index] = Vertex(next_vertex_index);
@@ -335,9 +372,7 @@ std::vector<Arc*> Graph::get_shortest_path(){
     else
         init_distances_and_predecessors();
 
-    Vertex *u, *v, *w; Arc* a;
-    unsigned int size_d_plus;
-    unsigned int size_d_minus;
+    Vertex *w; Arc* a;
 
     if (distances[sink_index] == 10*UPPER_BOUND) return std::vector<Arc*> (0);
 

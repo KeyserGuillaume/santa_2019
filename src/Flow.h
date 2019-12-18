@@ -85,7 +85,8 @@ public:
     std::vector<Arc*> get_shortest_path();
     int get_flow_cost()const;
     int get_true_flow_cost()const;
-    int init_distances_and_predecessors();
+    void get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds)const;
+    void init_distances_and_predecessors();
     void add_obvious_flows();
     void add_zero_valued_flows();
     void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns);
