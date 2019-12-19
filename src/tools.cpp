@@ -1,4 +1,5 @@
 #include "tools.h"
+#include <algorithm>
 
 std::vector<unsigned int> read_solution(const std::string &filename){
     std::ifstream targetFile (filename.c_str());
@@ -89,4 +90,10 @@ bool is_an_assignation(const preset &p) {
         if (p[i] == COMPULSORY)
             return true;
     return false;
+}
+
+bool myfunction (uint_pair i, uint_pair j) { return (i.second < j.second);}
+
+void sort_by_second(std::vector<uint_pair> &myvector) {
+    std::sort (myvector.begin(), myvector.end(), myfunction);
 }

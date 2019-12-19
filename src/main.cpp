@@ -11,10 +11,10 @@
 
 int main() {
     clock_t begin = clock();
-    std::vector<unsigned int> initial_solution = read_solution("../../solutions/local_search_solution_74565_.csv");
+    std::vector<unsigned int> initial_solution = read_solution("../../solutions/local_search_solution_72604_.csv");
     std::vector<std::vector<unsigned int>> family_data = read_instance(INSTANCE_PATH);
 
-    Assignment A(family_data, initial_solution);//A.stats();
+    Assignment A(family_data, initial_solution);A.stats();
 //    std::cout << A.get_cost() << std::endl;
 //    A.check_solution_is_ok();
 //    LocalSearch LS(&A);
@@ -36,16 +36,21 @@ int main() {
 
 
     std::vector<preset> presets = get_empty_presets();
-    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-        if (i % 100 != 0 && A.get_ith_family(i)->get_k() < K_MAX)
-            presets[i] = get_assignation_preset(A.get_ith_family(i)->get_k());
-    }
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+//        if (i % 10 != 0 && A.get_ith_family(i)->get_k() < K_MAX)
+//            presets[i] = get_assignation_preset(A.get_ith_family(i)->get_k());
+//    }
 
     Graph G1 = Graph(family_data, presets);
-    G1.check_flow();
+//    G1.clear_flow();
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+//        if (i % 2 == 0)
+//            G1.add_flow_for_assigning_family(i, A.get_ith_family(i)->get_k(), family_data[i][NB_CHOICES]);
+//    }
+    //G1.check_flow();
     //std::cout << "flow is " << G1.get_current_flow() << " with true cost " << G1.get_true_flow_cost() << std::endl;return 0;
     G1.compute_max_flow_min_cost();
-    std::cout << "flow is " << G1.get_current_flow() << " with true cost " << G1.get_true_flow_cost() << std::endl;
+    std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost() <<" and with true cost " << G1.get_true_flow_cost() << std::endl;
     G1.check_flow();
     //G.show_schedule();
 

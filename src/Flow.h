@@ -54,6 +54,7 @@ public:
     unsigned int get_id()const{return id;}
     unsigned int get_flow()const{return flow;}
     void add_to_flow(int f){flow += f;}
+    void clear_flow(){flow = 0;}
 };
 
 
@@ -68,6 +69,7 @@ private:
     std::vector<int> distances;
     std::vector<Arc*> predecessor;
     std::vector<unsigned int> family_indexes, day_indexes;
+    std::vector<int> full_family_indexes;
     unsigned int source_index, sink_index;
     unsigned int presets_costs = 0;
     bool can_we_add_zeros_valued_flows = false;
@@ -85,15 +87,18 @@ public:
     std::vector<Arc*> get_shortest_path();
     int get_flow_cost()const;
     int get_true_flow_cost()const;
+    std::vector<unsigned int> get_bottleneck_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, const std::vector<unsigned int> &presets_schedule) const;
     void get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds)const;
     void init_distances_and_predecessors();
     void add_obvious_flows();
     void add_zero_valued_flows();
-    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns);
+    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity = 0);
     void update_distances();
     void apply_Bellman_Ford(std::queue<Vertex*> &Q);
     void show_distances();
     void show_schedule();
-    void check_flow();
+    void check_flow(const bool &check_minimal_flow = false);
+    void clear_flow();
+    void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
 };
 
