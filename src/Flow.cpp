@@ -31,18 +31,22 @@ Graph::Graph() {
     max_possible_flow = 3;
 }
 
-void Graph::init_distances_and_predecessors() {
-    distances = std::vector<int> (n_V, 10*UPPER_BOUND);
-    predecessor = std::vector<Arc*>(n_V);
-    distances[source_index] = 0;
-    std::queue<Vertex*> Q;
-    Q.push(V + source_index);
-    // I assume this is not an infinite loop (no absorbing circuit)
-    while (!Q.empty()) {
-        apply_Bellman_Ford(Q);
+unsigned int Graph::get_day_cost_lower_bound(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds) const {
+    unsigned int gap;
+    float res;
+    for (unsigned int i = 0; i < NB_DAYS; i++) {
+        if (i == NB_DAYS - 1)
+            gap = 0;
+        else if (upper_bounds[i] <= lower_bounds[i + 1])
+            gap = lower_bounds[i + 1] - upper_bounds[i];
+        else if (upper_bounds[i + 1] <= lower_bounds[i])
+            gap = lower_bounds[i] - upper_bounds[i + 1];
+        else
+            gap = 0;
+        res += (lower_bounds[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(lower_bounds[i], 0.5 + gap/50.);
     }
-    if (distances[sink_index] == 0)
-        can_we_add_zeros_valued_flows = true;
+    std::cout << "cost from days is at least "<<res<<std::endl;
+    return floor(res);
 }
 
 void Graph::get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds) const {
@@ -73,6 +77,7 @@ void Graph::get_affluence_bounds(const std::vector<std::vector<unsigned int>> &f
                 a = lower_bounds[i];
                 lower_bounds[i] = std::max(a, (unsigned int)(std::max(0., ceil(lower_bounds[i + 1] - 50./log(a)*(log(400.*1000./float(a - MIN_NB_PEOPLE_PER_DAY) - 0.5))))));
             }
+            //std::cout << lower_bounds[i] << std::endl;
             a = lower_bounds[i];
             upper_bounds[i + 1] = std::min(upper_bounds[i + 1], (unsigned int)(floor(upper_bounds[i] + 50./log(a)*(log(400.*1000./float(a - MIN_NB_PEOPLE_PER_DAY) - 0.5)))));
             //std::cout << preset_lower_bound[i] << " " << lower_bounds[i] << " " << upper_bounds[i] << " " << lower_bounds[i + 1] << " " << upper_bounds[i + 1] << " " << preset_upper_bound[i + 1] << std::endl;
@@ -87,7 +92,7 @@ std::vector<uint_pair> Graph::get_bottleneck_bounds(const std::vector<std::vecto
                                                     std::vector<unsigned int> upper_bounds) const{
     // this gives the bottleneck bound. To know how many families can be accomodated during the day, you need to add the
     // nb of families already put on that day by the preset.
-    // first is the min number of families that should be assigned to the day, second is the max number.
+    // first is the min number of *additional* families that should be assigned to the day, second is the max number.
     std::vector<uint_pair> sorted_families(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         sorted_families.push_back(uint_pair(i, family_data[i][NB_CHOICES]));
@@ -110,25 +115,31 @@ std::vector<uint_pair> Graph::get_bottleneck_bounds(const std::vector<std::vecto
             }
         }
     }
-    for (unsigned int i = 0; i < NB_DAYS; i++)
-        std::cout << bottleneck_bounds[i].first << std::string(4 - nb_chiffres(bottleneck_bounds[i].first),' ');
-    std::cout << std::endl;
     possible_family_cum_sizes = std::vector<unsigned int>(NB_DAYS, 0);
     day_has_its_value = std::vector<bool> (NB_DAYS, false);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         for (unsigned int k = 0; k < K_MAX; k++) {
             current_family = sorted_families[NB_FAMILIES - i - 1].first;
             current_day = family_data[current_family][k];
-            if (presets[current_family][k] == ALLOWED && !day_has_its_value[current_day]){
+            if (presets[current_family][k] == ALLOWED &&
+                possible_family_cum_sizes[current_day] < lower_bounds[current_day] - presets_schedule[current_day]){
+                //!day_has_its_value[current_day]){
                 possible_family_cum_sizes[current_day] += family_data[current_family][NB_CHOICES];
                 bottleneck_bounds[current_day].first++;
-                if (possible_family_cum_sizes[current_day] >= lower_bounds[current_day] - presets_schedule[current_day])
-                    day_has_its_value[current_day] = true;
+               // if (possible_family_cum_sizes[current_day] >= lower_bounds[current_day] - presets_schedule[current_day])
+                 //   day_has_its_value[current_day] = true;
             }
         }
     }
+    std::cout << "bottleneck bounds" << std::endl;
     for (unsigned int i = 0; i < NB_DAYS; i++)
-        std::cout << bottleneck_bounds[i].first << std::string(4 - nb_chiffres(bottleneck_bounds[i].first),' ') << bottleneck_bounds[i].second << std::endl;
+        std::cout << bottleneck_bounds[i].first << std::string(4 - nb_chiffres(bottleneck_bounds[i].first),' ');
+    std::cout << std::endl;
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        std::cout << bottleneck_bounds[i].second << std::string(4 - nb_chiffres(bottleneck_bounds[i].second),' ');
+    std::cout << std::endl;
+//    for (unsigned int i = 0; i < NB_DAYS; i++)
+//        std::cout << bottleneck_bounds[i].first << std::string(4 - nb_chiffres(bottleneck_bounds[i].first),' ') << bottleneck_bounds[i].second << std::endl;
     return bottleneck_bounds;
 }
 
@@ -142,6 +153,7 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
     std::vector<unsigned int> lower_bounds(NB_DAYS, 0);
     std::vector<unsigned int> upper_bounds(NB_DAYS, 0);
     get_affluence_bounds(family_data, presets, lower_bounds, upper_bounds);
+    presets_costs += get_day_cost_lower_bound(lower_bounds, upper_bounds);
 
     std::vector<unsigned int> presets_schedule(NB_DAYS, 0);
     std::vector<unsigned int> presets_cardinal(NB_DAYS, 0);
@@ -158,6 +170,19 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
                 nb_forbidden_assignments++;
         }
     }
+
+    // if a family is too big for the day given the preset schedule, remove the link.
+    // not useful but no harm done and no time wasted
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+//        for (unsigned int k = 0; k < K_MAX; k++) {
+//            if (presets[i][k] == ALLOWED &&
+//                family_data[i][NB_CHOICES] + presets_schedule[family_data[i][k]] > upper_bounds[family_data[i][k]]) {
+//                presets[i][k] = FORBIDDEN;
+//                nb_forbidden_assignments++;
+//            }
+//        }
+//    }
+
     n_V = 1 + 3*(NB_FAMILIES - nb_already_assigned) + 2*NB_DAYS + 1;
     V = new Vertex [n_V];
     n_A = 3*(NB_FAMILIES - nb_already_assigned) + 2*NB_FAMILIES*K_MAX - 2*nb_forbidden_assignments + 4*NB_DAYS;
@@ -195,8 +220,14 @@ Graph::Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vec
         next_arc_index++;
         A[next_arc_index] = Arc(next_arc_index, V + bottleneck_indexes[i], V + day_indexes[i], bottleneck_bounds[i].second - bottleneck_bounds[i].first, 0);
         next_arc_index++;
-        std::cout << presets_cardinal[i] << std::string(4 - nb_chiffres(presets_cardinal[i]), ' ');
     }
+    std::cout << "Nb of families preset and number of people" << std::endl;
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        std::cout << presets_cardinal[i] << std::string(4 - nb_chiffres(presets_cardinal[i]), ' ');
+    std::cout << std::endl;
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        std::cout << presets_schedule[i] << std::string(4 - nb_chiffres(presets_schedule[i]), ' ');
+    std::cout<<std::endl;
 
     // the families
     for (unsigned int i = 0; i < NB_FAMILIES; i++){
@@ -306,6 +337,7 @@ bool Graph::find_and_apply_augmenting_path() {
     }
 
     flow += additional_flow;
+    if (debug) check_flow(false);
 
     return true;
 }
@@ -314,7 +346,7 @@ void Graph::compute_max_flow_min_cost() {
     unsigned int i = 0;
     while(find_and_apply_augmenting_path()){
         i++;
-        if (i%30 == 0)
+        if (i%50 == 0)
             std::cout << "flow is " << get_current_flow() << " with cost " << get_flow_cost() << " and paths have length " << get_shortest_path().size() << std::endl;
         if (can_we_add_zeros_valued_flows)
             add_zero_valued_flows();
@@ -338,6 +370,20 @@ unsigned int Graph::get_current_flow() const {
     }
     if (f1 != f2) throw std::logic_error("Why is my flow inconsistent ?");
     return f1;
+}
+
+void Graph::init_distances_and_predecessors() {
+    distances = std::vector<int> (n_V, 10*UPPER_BOUND);
+    predecessor = std::vector<Arc*>(n_V);
+    distances[source_index] = 0;
+    std::queue<Vertex*> Q;
+    Q.push(V + source_index);
+    // I assume this is not an infinite loop (no absorbing circuit)
+    while (!Q.empty()) {
+        apply_Bellman_Ford(Q);
+    }
+    if (distances[sink_index] == 0)
+        can_we_add_zeros_valued_flows = true;
 }
 
 void Graph::update_distances() {
@@ -535,7 +581,7 @@ void Graph::show_schedule() {
     std::cout << std::endl;
 }
 
-void Graph::check_flow(const bool &check_minimal_flow) {
+void Graph::check_flow(const bool &check_maximal_flow) {
     for (unsigned int i = 0; i < n_V; i++){
         if (i == source_index || i == sink_index) continue;
         unsigned int f1 = 0, f2 = 0;
@@ -552,18 +598,33 @@ void Graph::check_flow(const bool &check_minimal_flow) {
             throw std::logic_error("Why is my flow not ok ?");
     }
 
-    for (unsigned int i = 0; i < full_family_indexes.size(); i++)
-        if (full_family_indexes[i] != -1 && (V + full_family_indexes[i])->get_ith_incoming(0)->has_capacity_left() && check_minimal_flow)
-            throw std::logic_error("Why do I have this capacity left ?");
-
     for (unsigned int i = 0; i < n_A; i++){
         Arc* a = A + i;
         if (a->get_flow() > a->get_capa())
             throw std::logic_error("Why is my flow greater than my capa ?");
-        if (a->get_cost() == -UPPER_BOUND && a->has_capacity_left() && check_minimal_flow)
-            throw std::logic_error("Why do I have this capacity left ?");
     }
 
+    if (check_maximal_flow)
+        is_flow_maximal(true);
+
+}
+
+
+bool Graph::is_flow_maximal(const bool &throw_error) const {
+    for (unsigned int i = 0; i < full_family_indexes.size(); i++) {
+        if (full_family_indexes[i] != -1 && (V + full_family_indexes[i])->get_ith_incoming(0)->has_capacity_left()) {
+            if (throw_error) throw std::logic_error("Why do I have this capacity left ?");
+            return false;
+        }
+    }
+    for (unsigned int i = 0; i < n_A; i++){
+        Arc* a = A + i;
+        if (a->get_cost() == -UPPER_BOUND && a->has_capacity_left()) {
+            if (throw_error) throw std::logic_error("Why do I have this capacity left ?");
+            return false;
+        }
+    }
+    return true;
 }
 
 void Graph::add_m2M_valued_flows() {
@@ -583,6 +644,7 @@ void Graph::add_mM_valued_flows() {
         add_obvious_flow(family_indexes[i], std::vector<unsigned int>({1, 0, 0}));
     for (unsigned int i = 0; i < family_indexes.size(); i++)
         add_obvious_flow(family_indexes[i], std::vector<unsigned int>({1, 1, 0}));
+    if (debug) check_flow(false);
 
 }
 
@@ -594,6 +656,7 @@ void Graph::add_zero_valued_flows() {
         add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({1, 0, 1}));
     for (unsigned int i = 0; i < family_indexes.size(); i++)
         add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({1, 1, 1}));
+    if (debug) check_flow(false);
 }
 
 void Graph::add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity, const bool &force) {

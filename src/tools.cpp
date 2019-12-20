@@ -50,12 +50,16 @@ void write_solution_(std::vector<unsigned int> solution, const std::string &file
 
 
 void write_solution_(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets, const std::string &filename) {
+    write_solution_(get_solution(family_data, presets), filename);
+}
+
+std::vector<unsigned int> get_solution(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets) {
     std::vector<unsigned int> solution(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
-        for (unsigned int k = 0; k < NB_CHOICES; k++)
+        for (unsigned int k = 0; k < K_MAX; k++)
             if (presets[i][k] == COMPULSORY)
                 solution.push_back(family_data[i][k]);
-    write_solution_(solution, filename);
+    return solution;
 }
 
 
@@ -67,13 +71,13 @@ unsigned int nb_chiffres(unsigned int i){
 }
 
 preset get_assignation_preset(unsigned int k) {
-    preset result = std::vector<status>(NB_CHOICES, FORBIDDEN);
+    preset result = std::vector<status>(K_MAX, FORBIDDEN);
     result[k] = COMPULSORY;
     return result;
 }
 
 preset get_counter_assignation_preset(unsigned int k) {
-    preset result = std::vector<status>(NB_CHOICES, ALLOWED);
+    preset result = std::vector<status>(K_MAX, ALLOWED);
     result[k] = FORBIDDEN;
     return result;
 }
@@ -81,15 +85,16 @@ preset get_counter_assignation_preset(unsigned int k) {
 std::vector<preset> get_empty_presets() {
     std::vector<preset> presets(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
-        presets.push_back(std::vector<status>(NB_CHOICES, ALLOWED));
+        presets.push_back(std::vector<status>(K_MAX, ALLOWED));
     return presets;
 }
 
 bool is_an_assignation(const preset &p) {
-    for (unsigned int i = 0; i < NB_CHOICES; i++)
-        if (p[i] == COMPULSORY)
-            return true;
-    return false;
+    unsigned int count = 0;
+    for (unsigned int i = 0; i < K_MAX; i++)
+        if (p[i] == FORBIDDEN)
+            count++;
+    return (count == K_MAX - 1);
 }
 
 bool myfunction (uint_pair i, uint_pair j) { return (i.second < j.second);}
@@ -97,3 +102,18 @@ bool myfunction (uint_pair i, uint_pair j) { return (i.second < j.second);}
 void sort_by_second(std::vector<uint_pair> &myvector) {
     std::sort (myvector.begin(), myvector.end(), myfunction);
 }
+
+bool are_presets_feasible(const std::vector<preset> &presets, const std::vector<std::vector<unsigned int>> &family_data) {
+    std::vector<unsigned int> presets_schedule(NB_DAYS, 0);
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        for (unsigned int k = 0; k < K_MAX; k++) {
+            if (presets[i][k] == COMPULSORY) {
+                presets_schedule[family_data[i][k]] += family_data[i][NB_CHOICES];
+                if (presets_schedule[family_data[i][k]] > MAX_NB_PEOPLE_PER_DAY)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+

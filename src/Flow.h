@@ -76,6 +76,7 @@ private:
     unsigned int presets_costs = 0;
     bool can_we_add_mM_valued_flows = false;
     bool can_we_add_zeros_valued_flows = false;
+    bool debug = true;
 public:
     Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
     Graph();
@@ -96,6 +97,7 @@ public:
                                                      std::vector<unsigned int> lower_bounds,
                                                      std::vector<unsigned int> upper_bounds) const;
     void get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds)const;
+    unsigned int get_day_cost_lower_bound(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds) const;
     void init_distances_and_predecessors();
     void add_m2M_valued_flows();
     void add_mM_valued_flows();
@@ -105,7 +107,8 @@ public:
     void apply_Bellman_Ford(std::queue<Vertex*> &Q);
     void show_distances();
     void show_schedule();
-    void check_flow(const bool &check_minimal_flow = true);
+    void check_flow(const bool &check_maximal_flow = true);
+    bool is_flow_maximal(const bool &throw_error = false) const;
     void clear_flow();
     void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
     void inspect_distances() const;
