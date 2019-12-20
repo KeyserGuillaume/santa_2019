@@ -6,6 +6,8 @@
 #include "constants.h"
 #include <stdexcept>
 
+#include "tools.h"
+
 // Vertex must know about Arc and vice-versa
 class Arc;
 
@@ -72,6 +74,7 @@ private:
     std::vector<int> full_family_indexes;
     unsigned int source_index, sink_index;
     unsigned int presets_costs = 0;
+    bool can_we_add_mM_valued_flows = false;
     bool can_we_add_zeros_valued_flows = false;
 public:
     Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
@@ -87,18 +90,24 @@ public:
     std::vector<Arc*> get_shortest_path();
     int get_flow_cost()const;
     int get_true_flow_cost()const;
-    std::vector<unsigned int> get_bottleneck_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, const std::vector<unsigned int> &presets_schedule) const;
+    std::vector<uint_pair> get_bottleneck_bounds(const std::vector<std::vector<unsigned int>> &family_data,
+                                                     const std::vector<preset> &presets,
+                                                     const std::vector<unsigned int> &presets_schedule,
+                                                     std::vector<unsigned int> lower_bounds,
+                                                     std::vector<unsigned int> upper_bounds) const;
     void get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds)const;
     void init_distances_and_predecessors();
-    void add_obvious_flows();
+    void add_m2M_valued_flows();
+    void add_mM_valued_flows();
     void add_zero_valued_flows();
-    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity = 0);
+    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity = 0, const bool &force = false);
     void update_distances();
     void apply_Bellman_Ford(std::queue<Vertex*> &Q);
     void show_distances();
     void show_schedule();
-    void check_flow(const bool &check_minimal_flow = false);
+    void check_flow(const bool &check_minimal_flow = true);
     void clear_flow();
     void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
+    void inspect_distances() const;
 };
 

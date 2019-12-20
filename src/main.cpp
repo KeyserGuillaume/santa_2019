@@ -37,27 +37,25 @@ int main() {
 
     std::vector<preset> presets = get_empty_presets();
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-//        if (i % 10 != 0 && A.get_ith_family(i)->get_k() < K_MAX)
+//        if (i % 5 != 0 && A.get_ith_family(i)->get_k() < K_MAX)
 //            presets[i] = get_assignation_preset(A.get_ith_family(i)->get_k());
 //    }
 
-    Graph G1 = Graph(family_data, presets);
+    Graph G = Graph(family_data, presets);
 //    G1.clear_flow();
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++){
 //        if (i % 2 == 0)
 //            G1.add_flow_for_assigning_family(i, A.get_ith_family(i)->get_k(), family_data[i][NB_CHOICES]);
 //    }
-    //G1.check_flow();
-    //std::cout << "flow is " << G1.get_current_flow() << " with true cost " << G1.get_true_flow_cost() << std::endl;return 0;
-    G1.compute_max_flow_min_cost();
-    std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost() <<" and with true cost " << G1.get_true_flow_cost() << std::endl;
-    G1.check_flow();
+    G.compute_max_flow_min_cost();
+    std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost() <<" and with true cost " << G.get_true_flow_cost() << std::endl;
+    G.check_flow();
     //G.show_schedule();
 
 //    unsigned int current_family = 0;
 //    unsigned int k = 0;  // the k we are assigning
 //    unsigned int value_if_assign, value_if_counter_assign;
-//    for (unsigned int i = nb_assigned; i < NB_FAMILIES; i++){
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++){
 //        bool found = false;
 //        for (;k < 5; k++){
 //            for (; current_family < NB_FAMILIES; current_family++){
@@ -73,18 +71,18 @@ int main() {
 //        presets[current_family][k] = FORBIDDEN;
 //        Graph G1 = Graph(family_data, presets);
 //        G1.compute_max_flow_min_cost();
-//        std::cout << "flow is " << G1.get_current_flow() << " with true cost " << G1.get_true_flow_cost() << std::endl;
+//        std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost() <<" and with true cost " << G1.get_true_flow_cost() << std::endl;
 //        G1.check_flow();
-//        value_if_counter_assign = G1.get_flow_cost();
+//        value_if_counter_assign = G1.get_true_flow_cost();
 //
 //        preset p = presets[current_family];
 //
 //        presets[current_family] = get_assignation_preset(k);
 //        Graph G = Graph(family_data, presets);
 //        G.compute_max_flow_min_cost();
-//        std::cout << "flow is " << G.get_current_flow() << " with true cost " << G.get_true_flow_cost() << std::endl;
+//        std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost() <<" and with true cost " << G.get_true_flow_cost() << std::endl;
 //        G.check_flow();
-//        value_if_assign = G.get_flow_cost();
+//        value_if_assign = G.get_true_flow_cost();
 //
 //        if (value_if_counter_assign < value_if_assign)
 //            presets[current_family] = p;
