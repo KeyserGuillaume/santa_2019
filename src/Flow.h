@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "tools.h"
+#include "Presets.h"
 
 // Vertex must know about Arc and vice-versa
 class Arc;
@@ -73,15 +74,13 @@ private:
     std::vector<unsigned int> family_indexes, day_indexes;
     std::vector<int> full_family_indexes;
     unsigned int source_index, sink_index;
-    unsigned int presets_costs = 0;
     bool can_we_add_mM_valued_flows = false;
     bool can_we_add_zeros_valued_flows = false;
     bool debug = true;
-    std::vector<preset> presets;
-    std::vector<float> day_costs_lower_bounds;
+    const Presets &presets;
 public:
-    Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
-    Graph();
+    Graph(const Presets &presets, const bool &toy);
+    Graph(const Presets &presets);
     ~Graph(){
         delete [] V;
         delete [] A;
@@ -102,12 +101,11 @@ public:
             const std::vector<preset> &presets,
             std::vector<unsigned int> &lower_bounds,
             std::vector<unsigned int> &upper_bounds)const;
-    unsigned int get_day_cost_lower_bound(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds);
     void compute_day_cost_lower_bounds(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds);
 
     bool find_and_apply_augmenting_path();
     void compute_max_flow_min_cost();
-    std::vector<preset> get_solution();
+    Presets get_solution();
     unsigned int get_current_flow() const;
     std::vector<Arc*> get_shortest_path();
     int get_flow_cost() const;
@@ -128,10 +126,10 @@ public:
     void show_dispersion() const;
     std::vector<unsigned int> get_family_dispersion() const;
     uint_pair get_most_dispersed_family() const;
-    std::vector<float> get_real_day_costs(const std::vector<std::vector<unsigned int>> &family_data) const;
-    int get_overload_family(const std::vector<std::vector<unsigned int>> &family_data) const;
+    std::vector<float> get_real_day_costs() const;
+    int get_overload_family() const;
     void check_flow(const bool &check_maximal_flow = true);
-    void check_day_costs_are_ok(const std::vector<std::vector<unsigned int>> &family_data) const;
+    void check_day_costs_are_ok() const;
     bool is_flow_maximal(const bool &throw_error = false) const;
     void clear_flow();
     void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);

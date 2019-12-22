@@ -7,6 +7,7 @@
 #include "tools.h"
 #include "Flow.h"
 #include "LocalSearch.h"
+#include "Presets.h"
 
 unsigned int get_first_not_assigned_family(std::vector<preset> &presets, unsigned int & k){
     unsigned int current_family = 0;
@@ -25,10 +26,10 @@ unsigned int get_first_not_assigned_family(std::vector<preset> &presets, unsigne
     return current_family;
 }
 
-unsigned int brute_force(std::vector<preset> &presets, const std::vector<std::vector<unsigned int>> &family_data, unsigned int& nb_nodes){
+unsigned int brute_force(Presets &presets, const std::vector<std::vector<unsigned int>> &family_data, unsigned int& nb_nodes){
     nb_nodes++;
 
-    Graph G = Graph(family_data, presets);
+    Graph G = Graph(presets);
     G.compute_max_flow_min_cost();
     std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost()
               << " and with true cost " << G.get_true_flow_cost() << std::endl;
@@ -36,8 +37,8 @@ unsigned int brute_force(std::vector<preset> &presets, const std::vector<std::ve
     if (!G.is_flow_maximal() || cost > BEST_SOLUTION)
         return BEST_SOLUTION + 1; // indicate that there is no acceptable solution from this preset
     if (G.get_current_flow() == 0) {
-        G.check_day_costs_are_ok(family_data);
-        write_solution_(family_data, presets, "../../solutions/flow_solution_" + std::to_string(cost) + ".csv");
+        G.check_day_costs_are_ok();
+        presets.write_solution("../../solutions/flow_solution_" + std::to_string(cost) + ".csv");
 //        Graph G1 = Graph(family_data, presets);
 //        G1.compute_max_flow_min_cost();
 //        std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost()
@@ -53,18 +54,15 @@ unsigned int brute_force(std::vector<preset> &presets, const std::vector<std::ve
 //        while (is_an_assignation(presets[current_family]) && current_family < NB_FAMILIES)
 //            current_family++;
 //    }
-    unsigned int current_family = G.get_overload_family(family_data);
+    unsigned int current_family = G.get_overload_family();
     if (current_family == - 1){
-        write_solution_(family_data, G.get_solution(), "../../solutions/flow_solution_" + std::to_string(cost) + ".csv");
+        G.get_solution().write_solution("../../solutions/flow_solution_" + std::to_string(cost) + ".csv");
     }
 
-    preset p = presets[current_family];
-
-    unsigned int k_min = 0;
     unsigned int min_cost = BEST_SOLUTION + 1;
     for (unsigned int k = 0; k < K_MAX; k++){
-        presets[current_family] = get_assignation_preset(k);
-        if (are_presets_feasible(presets, family_data)) {
+        presets.assign_family(current_family, k);
+        if (presets.is_feasible()) {
             cost = brute_force(presets, family_data, nb_nodes);
             if (cost < min_cost) {
                 min_cost = cost;
@@ -72,62 +70,62 @@ unsigned int brute_force(std::vector<preset> &presets, const std::vector<std::ve
         }
     }
 
-    presets[current_family] = p;
+    presets.deassign_family(current_family);
 
     return min_cost;
 }
 
-void do_greedy_descent_in_search_tree(std::vector<preset> &presets, const std::vector<std::vector<unsigned int>> &family_data){
-    unsigned int k = 0;  // the k we are assigning
-    unsigned int value_if_assign, value_if_counter_assign;
-
-//    Graph G0 = Graph(family_data, presets);
-//    G0.compute_max_flow_min_cost();
-//    unsigned int current_family = G0.get_most_dispersed_family();
-
-    for (unsigned int i = 0; i < NB_FAMILIES; i++){
-        unsigned int current_family = get_first_not_assigned_family(presets, k);
-
-        if (k == K_MAX)
-            break;
-
-        presets[current_family][k] = FORBIDDEN;
-        if (is_an_assignation(presets[current_family]))
-            presets[current_family][k + 1] = COMPULSORY;
-        if (are_presets_feasible(presets, family_data)) {
-            Graph G1 = Graph(family_data, presets);
-            G1.compute_max_flow_min_cost();
-            std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost()
-                      << " and with true cost " << G1.get_true_flow_cost() << std::endl;
-            if (!G1.is_flow_maximal())
-                value_if_counter_assign = 100*UPPER_BOUND;
-            else
-                value_if_counter_assign = G1.get_true_flow_cost();
-        }
-        else
-            value_if_counter_assign = 100*UPPER_BOUND;
-
-        preset p = presets[current_family];
-
-        presets[current_family] = get_assignation_preset(k);
-        if (are_presets_feasible(presets, family_data)) {
-            Graph G = Graph(family_data, presets);
-            G.compute_max_flow_min_cost();
-            std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost()
-                      << " and with true cost " << G.get_true_flow_cost() << std::endl;
-            value_if_assign = G.get_true_flow_cost();
-            if (!G.is_flow_maximal())
-                value_if_assign = 100*UPPER_BOUND;
-            else
-                value_if_assign = G.get_true_flow_cost();
-        }
-        else
-            value_if_assign = 100*UPPER_BOUND;
-
-        if (value_if_counter_assign < value_if_assign)
-            presets[current_family] = p;
-    }
-}
+//void do_greedy_descent_in_search_tree(Presets &presets, const std::vector<std::vector<unsigned int>> &family_data){
+//    unsigned int k = 0;  // the k we are assigning
+//    unsigned int value_if_assign, value_if_counter_assign;
+//
+////    Graph G0 = Graph(family_data, presets);
+////    G0.compute_max_flow_min_cost();
+////    unsigned int current_family = G0.get_most_dispersed_family();
+//
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+//        unsigned int current_family = get_first_not_assigned_family(presets, k);
+//
+//        if (k == K_MAX)
+//            break;
+//
+//        presets[current_family][k] = FORBIDDEN;
+//        if (is_an_assignation(presets[current_family]))
+//            presets[current_family][k + 1] = COMPULSORY;
+//        if (are_presets_feasible(presets, family_data)) {
+//            Graph G1 = Graph(family_data, presets);
+//            G1.compute_max_flow_min_cost();
+//            std::cout << "flow is " << G1.get_current_flow() << " with current cost " << G1.get_flow_cost()
+//                      << " and with true cost " << G1.get_true_flow_cost() << std::endl;
+//            if (!G1.is_flow_maximal())
+//                value_if_counter_assign = 100*UPPER_BOUND;
+//            else
+//                value_if_counter_assign = G1.get_true_flow_cost();
+//        }
+//        else
+//            value_if_counter_assign = 100*UPPER_BOUND;
+//
+//        preset p = presets[current_family];
+//
+//        presets[current_family] = get_assignation_preset(k);
+//        if (are_presets_feasible(presets, family_data)) {
+//            Graph G = Graph(family_data, presets);
+//            G.compute_max_flow_min_cost();
+//            std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost()
+//                      << " and with true cost " << G.get_true_flow_cost() << std::endl;
+//            value_if_assign = G.get_true_flow_cost();
+//            if (!G.is_flow_maximal())
+//                value_if_assign = 100*UPPER_BOUND;
+//            else
+//                value_if_assign = G.get_true_flow_cost();
+//        }
+//        else
+//            value_if_assign = 100*UPPER_BOUND;
+//
+//        if (value_if_counter_assign < value_if_assign)
+//            presets[current_family] = p;
+//    }
+//}
 
 
 int main() {
@@ -156,15 +154,19 @@ int main() {
 //    }
 
 
-    std::vector<preset> presets = get_empty_presets();
+    Presets presets = Presets(family_data);
+    //presets.assign_family(0, 0);
+    //std::cout << presets.get_family_size(0) << " " << presets.get_presets_occupancy(presets.get_family_data(0, 0)) << std::endl;return 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         unsigned int k = A.get_ith_family(i)->get_k();
         //if (i % 800 != 0 && k < K_MAX)
-        if (i > 100 && k <= 2)
-            presets[i] = get_assignation_preset(k);
+        if (i > 8 && k <= 3)
+            presets.assign_family(i, k, false);
     }
+    presets.compute_all_bounds();
+    presets.compute_feasibility();
 
-    Graph G = Graph(family_data, presets);
+    Graph G = Graph(presets);
 //    G1.clear_flow();
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++){
 //        if (i % 2 == 0)
