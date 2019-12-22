@@ -77,6 +77,8 @@ private:
     bool can_we_add_mM_valued_flows = false;
     bool can_we_add_zeros_valued_flows = false;
     bool debug = true;
+    std::vector<preset> presets;
+    std::vector<float> day_costs_lower_bounds;
 public:
     Graph(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets);
     Graph();
@@ -84,33 +86,57 @@ public:
         delete [] V;
         delete [] A;
     }
+    std::vector<std::vector<unsigned int>> get_k_fold_bottleneck_bounds(
+            const std::vector<std::vector<unsigned int>> &family_data,
+            const std::vector<preset> &presets,
+            const std::vector<unsigned int> &presets_schedule,
+            const std::vector<unsigned int> &upper_bounds) const;
+    std::vector<uint_pair> get_bottleneck_bounds(
+            const std::vector<std::vector<unsigned int>> &family_data,
+            const std::vector<preset> &presets,
+            const std::vector<unsigned int> &presets_schedule,
+            const std::vector<unsigned int> &lower_bounds,
+            const std::vector<unsigned int> &upper_bounds) const;
+    void get_affluence_bounds(
+            const std::vector<std::vector<unsigned int>> &family_data,
+            const std::vector<preset> &presets,
+            std::vector<unsigned int> &lower_bounds,
+            std::vector<unsigned int> &upper_bounds)const;
+    unsigned int get_day_cost_lower_bound(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds);
+    void compute_day_cost_lower_bounds(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds);
+
     bool find_and_apply_augmenting_path();
     void compute_max_flow_min_cost();
-   // std::vector<unsigned int> get_solution() const;
+    std::vector<preset> get_solution();
     unsigned int get_current_flow() const;
     std::vector<Arc*> get_shortest_path();
-    int get_flow_cost()const;
-    int get_true_flow_cost()const;
-    std::vector<uint_pair> get_bottleneck_bounds(const std::vector<std::vector<unsigned int>> &family_data,
-                                                     const std::vector<preset> &presets,
-                                                     const std::vector<unsigned int> &presets_schedule,
-                                                     std::vector<unsigned int> lower_bounds,
-                                                     std::vector<unsigned int> upper_bounds) const;
-    void get_affluence_bounds(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<preset> &presets, std::vector<unsigned int> &lower_bounds, std::vector<unsigned int> &upper_bounds)const;
-    unsigned int get_day_cost_lower_bound(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds) const;
+    int get_flow_cost() const;
+    int get_true_flow_cost() const;
     void init_distances_and_predecessors();
     void add_m2M_valued_flows();
     void add_mM_valued_flows();
     void add_zero_valued_flows();
-    void add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity = 0, const bool &force = false);
+    void add_obvious_flow(
+            const unsigned int &family_index,
+            const std::vector<unsigned int> &turns,
+            const unsigned int &flow_quantity = 0,
+            const bool &force = false);
     void update_distances();
     void apply_Bellman_Ford(std::queue<Vertex*> &Q);
-    void show_distances();
-    void show_schedule();
+    void show_distances() const;
+    void show_schedule() const;
+    void show_dispersion() const;
+    std::vector<unsigned int> get_family_dispersion() const;
+    uint_pair get_most_dispersed_family() const;
+    std::vector<float> get_real_day_costs(const std::vector<std::vector<unsigned int>> &family_data) const;
+    int get_overload_family(const std::vector<std::vector<unsigned int>> &family_data) const;
     void check_flow(const bool &check_maximal_flow = true);
+    void check_day_costs_are_ok(const std::vector<std::vector<unsigned int>> &family_data) const;
     bool is_flow_maximal(const bool &throw_error = false) const;
     void clear_flow();
     void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
     void inspect_distances() const;
+    unsigned int get_ith_day_flow(unsigned int i) const;
+    unsigned int get_ith_day_capa(unsigned int i) const;
 };
 

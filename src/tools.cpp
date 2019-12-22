@@ -55,10 +55,23 @@ void write_solution_(const std::vector<std::vector<unsigned int>> &family_data, 
 
 std::vector<unsigned int> get_solution(const std::vector<std::vector<unsigned int>> &family_data, std::vector<preset> presets) {
     std::vector<unsigned int> solution(0);
-    for (unsigned int i = 0; i < NB_FAMILIES; i++)
-        for (unsigned int k = 0; k < K_MAX; k++)
+    unsigned int last_seen_allowed;
+    unsigned int nb_allowed_seen;
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        nb_allowed_seen = 0;
+        for (unsigned int k = 0; k < K_MAX; k++) {
             if (presets[i][k] == COMPULSORY)
                 solution.push_back(family_data[i][k]);
+            if (presets[i][k] == ALLOWED){
+                nb_allowed_seen++;
+                last_seen_allowed = family_data[i][k];
+            }
+        }
+        if (nb_allowed_seen == 1 && solution.size() == i)
+            solution.push_back(last_seen_allowed);
+        else if (solution.size() == i)
+            throw std::logic_error("Do these presets define a solutions ?");
+    }
     return solution;
 }
 

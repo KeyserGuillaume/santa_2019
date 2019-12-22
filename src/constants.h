@@ -17,3 +17,4 @@ const unsigned int CONSTANT_COST [] = {0, 50, 50, 100, 200, 200, 300, 300, 400, 
 const unsigned int MARGINAL_COST [] = {0,  0,  9,   9,   9,  18,  18,  36,  36, 235, 434};
 
 const unsigned int K_MAX = 5;
+const unsigned int BEST_SOLUTION = 71000;//72565;
