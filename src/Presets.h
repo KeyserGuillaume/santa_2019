@@ -57,4 +57,6 @@ public:
     unsigned int get_presets_costs() const{return presets_costs;}
     unsigned int get_day_cost_lower_bound() const{return std::max(4500, int(floor(day_cost_lower_bound)));}
     float get_day_cost_lower_bound(const unsigned int &i) const{return day_costs_lower_bounds[i];}
+    std::vector<unsigned int> get_largest_unassigned_families() const;
+    int get_largest_unassigned_strategic_family() const;
 };

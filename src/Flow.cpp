@@ -59,12 +59,20 @@ std::vector<float> Graph::get_real_day_costs() const {
 }
 
 void Graph::check_day_costs_are_ok() const {
+    day_costs_are_ok(true);
+}
+
+bool Graph::day_costs_are_ok(const bool & throw_error) const {
     std::vector<float> real_costs = get_real_day_costs();
 //    for (unsigned int i = 0; i < NB_DAYS; i++)
 //        std::cout << real_costs[i] << " " << day_costs_lower_bounds[i] << std::endl;
     for (unsigned int i = 0; i < NB_DAYS; i++)
-        if (real_costs[i] != presets.get_day_cost_lower_bound(i))
-            throw std::logic_error("flksrjgf");
+        if (real_costs[i] != presets.get_day_cost_lower_bound(i)) {
+            if (throw_error)
+                throw std::logic_error("flksrjgf");
+            return false;
+        }
+    return true;
 }
 
 int Graph::get_overload_family() const {
@@ -523,6 +531,21 @@ uint_pair Graph::get_most_dispersed_family() const {
         }
     }
     return uint_pair(i_maxi, maxi);
+}
+
+unsigned int Graph::get_largest_least_dispersed_family() const {
+    std::vector<unsigned int> i_maxi = presets.get_largest_unassigned_families();
+    std::vector<unsigned int> dispersion = get_family_dispersion();
+    unsigned int mini = K_MAX, i_mini = 0;
+    for (unsigned int m = 0; m < i_maxi.size(); m++){
+        unsigned int i = i_maxi[m];
+        if (dispersion[i] < mini){
+            mini = dispersion[i];
+            i_mini = i;
+        }
+    }
+    std::cout << presets.get_family_size(i_mini) << " " << dispersion[i_mini] << std::endl;
+    return i_mini;
 }
 
 void Graph::show_dispersion() const {

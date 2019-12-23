@@ -82,6 +82,7 @@ void Presets::compute_feasibility() {
 }
 
 void Presets::compute_occupancy_bounds() {
+    unsigned int max_day_cost = 500;
     std::vector<unsigned int> preset_lower_bound(NB_DAYS, 0);
     std::vector<unsigned int> preset_upper_bound(NB_DAYS, 0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
@@ -100,22 +101,16 @@ void Presets::compute_occupancy_bounds() {
         occupancy_lower_bounds[i] = std::max(MIN_NB_PEOPLE_PER_DAY, preset_lower_bound[i]);
     }
 
-    std::cout << "Upper bounds:" << std::endl;
-    print_nicely(occupancy_upper_bounds);
-
     for (int i = NB_DAYS - 1; i > 0; i--){
         if (i < NB_DAYS - 1 && occupancy_upper_bounds[i] > occupancy_upper_bounds[i + 1] &&
             (occupancy_upper_bounds[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_upper_bounds[i], 0.5+(occupancy_upper_bounds[i] - occupancy_upper_bounds[i + 1])/50.) > 500){
             unsigned int a;
             for (unsigned int j = 0; j < 10; j++) {
                 a = occupancy_upper_bounds[i];
-                occupancy_upper_bounds[i] = ceil(occupancy_upper_bounds[i + 1] + 50*(log(400.*500./float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5));
+                occupancy_upper_bounds[i] = ceil(occupancy_upper_bounds[i + 1] + 50*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5));
             }
         }
     }
-
-    std::cout << "Upper bounds:" << std::endl;
-    print_nicely(occupancy_upper_bounds);
 
     for (unsigned int i = 0; i < NB_DAYS; i++){
         if (i < NB_DAYS - 1 && occupancy_lower_bounds[i] > MIN_NB_PEOPLE_PER_DAY && occupancy_upper_bounds[i] <= occupancy_lower_bounds[i + 1]){// &&
@@ -124,11 +119,11 @@ void Presets::compute_occupancy_bounds() {
             unsigned int a;
             for (unsigned int j = 0; j < 10; j++) {
                 a = occupancy_lower_bounds[i];
-                occupancy_lower_bounds[i] = std::max(a, (unsigned int)(std::max(0., ceil(occupancy_lower_bounds[i + 1] - 50.*(log(400.*500./float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5)))));
+                occupancy_lower_bounds[i] = std::max(a, (unsigned int)(std::max(0., ceil(occupancy_lower_bounds[i + 1] - 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5)))));
             }
             //std::cout << occupancy_lower_bounds[i] << std::endl;
             a = occupancy_lower_bounds[i];
-            occupancy_upper_bounds[i + 1] = std::min(occupancy_upper_bounds[i + 1], (unsigned int)(floor(occupancy_upper_bounds[i] + 50.*(log(400.*500./float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5))));
+            occupancy_upper_bounds[i + 1] = std::min(occupancy_upper_bounds[i + 1], (unsigned int)(floor(occupancy_upper_bounds[i] + 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5))));
             //std::cout << preset_lower_bound[i] << " " << occupancy_lower_bounds[i] << " " << occupancy_upper_bounds[i] << " " << occupancy_lower_bounds[i + 1] << " " << occupancy_upper_bounds[i + 1] << " " << preset_upper_bound[i + 1] << std::endl;
         }
     }
@@ -151,19 +146,29 @@ void Presets::compute_day_costs_lb(const unsigned int &i) {
 }
 
 void Presets::compute_all_bounds() {
+    clock_t t0 = clock();
     compute_occupancy_bounds();
+    std::cout << "time spent on occupancy_bounds: " << clock() - t0 << std::endl;
 
+    t0 = clock();
     std::cout << "Nb of families preset and number of people" << std::endl;
     print_nicely(preset_occupancy);
     print_nicely(preset_cardinal);
+    std::cout << "time spent on printing: " << clock() - t0 << std::endl;
 
+    t0 = clock();
     for (unsigned int i = 0; i < NB_DAYS; i++)
         compute_day_costs_lb(i);
     compute_bottleneck_bounds();
+    std::cout << "time spent on bottleneck bounds: " << clock() - t0 << std::endl;
+    t0 = clock();
     compute_k_fold_bottleneck_ub();
+    std::cout << "time spent on k-fold bottleneck bounds: " << clock() - t0 << std::endl;
     day_cost_lower_bound = 0;
+    t0 = clock();
     for (unsigned int i = 0; i < NB_DAYS; i++)
         day_cost_lower_bound += get_day_cost_lower_bound(i);
+    std::cout << "time spent on day costs bounds: " << clock() - t0 << std::endl;
     std::cout << "cost from days is at least " << day_cost_lower_bound;
     if (day_cost_lower_bound < 4500)
         std::cout << " before being set to 4500";
@@ -232,4 +237,48 @@ void Presets::compute_k_fold_bottleneck_ub() {
             }
         }
     }
+}
+
+std::vector<unsigned int> Presets::get_largest_unassigned_families() const {
+    std::vector<unsigned int> largest(0);
+    unsigned int maxi = 1;
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        if (!is_already_assigned[i] && family_data[i][NB_CHOICES] > maxi){
+            maxi = family_data[i][NB_CHOICES];
+            largest.clear();
+            largest.push_back(i);
+        }
+        if (!is_already_assigned[i] && family_data[i][NB_CHOICES] == maxi)
+            largest.push_back(i);
+    }
+    return largest;
+}
+
+int Presets::get_largest_unassigned_strategic_family() const {
+    std::vector<unsigned int> largest = get_largest_unassigned_families();
+    if (largest.size() == 0)
+        return -1;
+    std::vector<unsigned int> best_to_second_differences(largest.size(), 0);
+    for (unsigned int m = 0; m < largest.size(); m++) {
+        unsigned int i = largest[m];
+        unsigned int best_k = K_MAX, second_best_k = K_MAX;
+        for (unsigned int k = 0; k < K_MAX; k++){
+            if (preset_occupancy[family_data[i][k]] + family_data[i][NB_CHOICES] > occupancy_upper_bounds[family_data[i][k]])
+                continue;
+            if (k > best_k && k < second_best_k)
+                second_best_k = k;
+            if (k < best_k)
+                best_k = k;
+        }
+        best_to_second_differences[m] = second_best_k - best_k;
+    }
+    unsigned int mini = K_MAX;
+    unsigned int i_mini = 0;
+    for (unsigned int m = 0; m < largest.size(); m++) {
+        if (best_to_second_differences[m] < mini){
+            mini = best_to_second_differences[m];
+            i_mini = largest[m];
+        }
+    }
+    return i_mini;
 }

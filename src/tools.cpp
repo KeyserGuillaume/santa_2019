@@ -48,20 +48,20 @@ void write_solution_(std::vector<unsigned int> solution, const std::string &file
     }
 }
 
-unsigned int nb_chiffres(unsigned int i){
+unsigned int nb_chiffres(const unsigned int &i){
     if (i < 2)
         return 1;
     else
         return 1 + (unsigned int)(log(i)/log(10));
 }
 
-preset get_assignation_preset(unsigned int k) {
+preset get_assignation_preset(const unsigned int &k) {
     preset result = std::vector<status>(K_MAX, FORBIDDEN);
     result[k] = COMPULSORY;
     return result;
 }
 
-preset get_counter_assignation_preset(unsigned int k) {
+preset get_counter_assignation_preset(const unsigned int &k) {
     preset result = std::vector<status>(K_MAX, ALLOWED);
     result[k] = FORBIDDEN;
     return result;

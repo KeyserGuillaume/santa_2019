@@ -85,23 +85,6 @@ public:
         delete [] V;
         delete [] A;
     }
-    std::vector<std::vector<unsigned int>> get_k_fold_bottleneck_bounds(
-            const std::vector<std::vector<unsigned int>> &family_data,
-            const std::vector<preset> &presets,
-            const std::vector<unsigned int> &presets_schedule,
-            const std::vector<unsigned int> &upper_bounds) const;
-    std::vector<uint_pair> get_bottleneck_bounds(
-            const std::vector<std::vector<unsigned int>> &family_data,
-            const std::vector<preset> &presets,
-            const std::vector<unsigned int> &presets_schedule,
-            const std::vector<unsigned int> &lower_bounds,
-            const std::vector<unsigned int> &upper_bounds) const;
-    void get_affluence_bounds(
-            const std::vector<std::vector<unsigned int>> &family_data,
-            const std::vector<preset> &presets,
-            std::vector<unsigned int> &lower_bounds,
-            std::vector<unsigned int> &upper_bounds)const;
-    void compute_day_cost_lower_bounds(std::vector<unsigned int> lower_bounds, std::vector<unsigned int> upper_bounds);
 
     bool find_and_apply_augmenting_path();
     void compute_max_flow_min_cost();
@@ -126,10 +109,12 @@ public:
     void show_dispersion() const;
     std::vector<unsigned int> get_family_dispersion() const;
     uint_pair get_most_dispersed_family() const;
+    unsigned int get_largest_least_dispersed_family() const;
     std::vector<float> get_real_day_costs() const;
     int get_overload_family() const;
     void check_flow(const bool &check_maximal_flow = true);
     void check_day_costs_are_ok() const;
+    bool day_costs_are_ok(const bool & throw_error = false) const;
     bool is_flow_maximal(const bool &throw_error = false) const;
     void clear_flow();
     void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
