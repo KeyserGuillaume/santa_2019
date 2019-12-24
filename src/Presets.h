@@ -9,10 +9,10 @@ class Presets {
     std::vector<std::vector<unsigned int>> &family_data;
     std::vector<preset> presets;
     std::vector<bool> is_already_assigned;
-    std::vector<unsigned int> preset_occupancy, preset_cardinal, occupancy_lower_bounds, occupancy_upper_bounds;
+    std::vector<unsigned int> preset_occupancy, preset_cardinal, occupancy_lb, occupancy_ub, occupancy_explicit_ub;
     std::vector<uint_pair> bottleneck_bounds;
     std::vector<std::vector<unsigned int>> k_fold_bottleneck_bounds;
-    std::vector<float> day_costs_lower_bounds;
+    std::vector<float> day_costs_lb;
     unsigned int presets_costs = 0;
     float day_cost_lower_bound = 0;
     bool is_feasible_ = true;
@@ -26,7 +26,8 @@ class Presets {
     void compute_occupancy_bounds();
     void compute_bottleneck_bounds();
     void compute_k_fold_bottleneck_ub();
-    void compute_day_costs_lb(const unsigned int &i);
+    float get_day_cost_lb_(const unsigned int &i);
+    unsigned int get_additional_day_cost_lb(const unsigned int &i);
 
 public:
     // move up those two once they've been optimized....?
@@ -49,14 +50,14 @@ public:
     unsigned int get_nb_forbidden_assignments() const{return nb_forbidden_assignments;}
     unsigned int get_presets_occupancy(const unsigned int &i) const{return preset_occupancy[i];}
     unsigned int get_presets_cardinal(const unsigned int &i) const{return preset_cardinal[i];}
-    unsigned int get_occupancy_lb(const unsigned int &i) const{return occupancy_lower_bounds[i];}
-    unsigned int get_occupancy_ub(const unsigned int &i) const{return occupancy_upper_bounds[i];}
+    unsigned int get_occupancy_lb(const unsigned int &i) const{return occupancy_lb[i];}
+    unsigned int get_occupancy_ub(const unsigned int &i) const{return occupancy_ub[i];}
     unsigned int get_bottleneck_lb(const unsigned int &i) const{return bottleneck_bounds[i].first;}
     unsigned int get_bottleneck_ub(const unsigned int &i) const{return bottleneck_bounds[i].second;}
     unsigned int get_bottleneck_ub(const unsigned int &i, const unsigned int &k) const{return k_fold_bottleneck_bounds[i][k];}
     unsigned int get_presets_costs() const{return presets_costs;}
-    unsigned int get_day_cost_lower_bound() const{return std::max(4500, int(floor(day_cost_lower_bound)));}
-    float get_day_cost_lower_bound(const unsigned int &i) const{return day_costs_lower_bounds[i];}
+    unsigned int get_day_cost_lb() const{return std::max(4500, int(floor(day_cost_lower_bound)));}
+    float get_day_cost_lb(const unsigned int &i) const{return day_costs_lb[i];}
     std::vector<unsigned int> get_largest_unassigned_families() const;
     int get_largest_unassigned_strategic_family() const;
 };

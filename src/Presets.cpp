@@ -1,4 +1,5 @@
 #include "Presets.h"
+#include <unordered_set>
 
 Presets::Presets(std::vector<std::vector<unsigned int>> &family_data): family_data(family_data) {
     presets = std::vector<preset> (0);
@@ -6,16 +7,16 @@ Presets::Presets(std::vector<std::vector<unsigned int>> &family_data): family_da
         presets.push_back(std::vector<status>(K_MAX, ALLOWED));
     preset_occupancy = std::vector<unsigned int>(NB_DAYS, 0);
     preset_cardinal = std::vector<unsigned int>(NB_DAYS, 0);
-    occupancy_lower_bounds = std::vector<unsigned int>(NB_DAYS, MIN_NB_PEOPLE_PER_DAY);
-    occupancy_upper_bounds = std::vector<unsigned int>(NB_DAYS, MAX_NB_PEOPLE_PER_DAY);
-    day_costs_lower_bounds = std::vector<float>(NB_DAYS, 0);
+    occupancy_lb = std::vector<unsigned int>(NB_DAYS, MIN_NB_PEOPLE_PER_DAY);
+    occupancy_ub = std::vector<unsigned int>(NB_DAYS, MAX_NB_PEOPLE_PER_DAY);
+    occupancy_explicit_ub = std::vector<unsigned int>(NB_DAYS, MAX_NB_PEOPLE_PER_DAY);
+    day_costs_lb = std::vector<float>(NB_DAYS, 0);
     is_already_assigned = std::vector<bool>(NB_FAMILIES, false);
     sorted_families = std::vector<uint_pair>(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         sorted_families.push_back(uint_pair(i, family_data[i][NB_CHOICES]));
     }
     sort_by_second(sorted_families);
-    compute_all_bounds();
 }
 
 void Presets::assign_family(const unsigned int &i, const unsigned int &k, const bool &compute_stuff) {
@@ -77,72 +78,106 @@ std::vector<unsigned int> Presets::get_solution() const {
 void Presets::compute_feasibility() {
     is_feasible_ = true;
     for (unsigned int i = 0; i < NB_DAYS && is_feasible_; i++)
-        if (preset_occupancy[i] > occupancy_upper_bounds[i] || occupancy_upper_bounds[i] < occupancy_lower_bounds[i])
+        if (preset_occupancy[i] > occupancy_ub[i] || occupancy_ub[i] < occupancy_lb[i])
             is_feasible_ = false;
 }
 
 void Presets::compute_occupancy_bounds() {
     unsigned int max_day_cost = 500;
-    std::vector<unsigned int> preset_lower_bound(NB_DAYS, 0);
-    std::vector<unsigned int> preset_upper_bound(NB_DAYS, 0);
-    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-        for (unsigned int k = 0; k < K_MAX; k++) {
-            if (presets[i][k] == COMPULSORY) {
-                preset_lower_bound[family_data[i][k]] += family_data[i][NB_CHOICES];
-            }
-            if (presets[i][k] != FORBIDDEN) {
-                preset_upper_bound[family_data[i][k]] += family_data[i][NB_CHOICES];
-            }
-        }
-    }
+    occupancy_explicit_ub = std::vector<unsigned int> (NB_DAYS, 0);
+    for (unsigned int i = 0; i < NB_FAMILIES; i++)
+        for (unsigned int k = 0; k < K_MAX; k++)
+            if (presets[i][k] != FORBIDDEN)
+               occupancy_explicit_ub[family_data[i][k]] += family_data[i][NB_CHOICES];
 
     for (unsigned int i = 0; i < NB_DAYS; i++){
-        occupancy_upper_bounds[i] = std::min(MAX_NB_PEOPLE_PER_DAY, preset_upper_bound[i]);
-        occupancy_lower_bounds[i] = std::max(MIN_NB_PEOPLE_PER_DAY, preset_lower_bound[i]);
+        occupancy_ub[i] = std::min(MAX_NB_PEOPLE_PER_DAY, occupancy_explicit_ub[i]);
+        occupancy_lb[i] = std::max(MIN_NB_PEOPLE_PER_DAY, preset_occupancy[i]);
     }
 
     for (int i = NB_DAYS - 1; i > 0; i--){
-        if (i < NB_DAYS - 1 && occupancy_upper_bounds[i] > occupancy_upper_bounds[i + 1] &&
-            (occupancy_upper_bounds[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_upper_bounds[i], 0.5+(occupancy_upper_bounds[i] - occupancy_upper_bounds[i + 1])/50.) > 500){
+        if (i < NB_DAYS - 1 && occupancy_ub[i] > occupancy_ub[i + 1] &&
+            (occupancy_ub[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_ub[i], 0.5+(occupancy_ub[i] - occupancy_ub[i + 1])/50.) > 500){
             unsigned int a;
             for (unsigned int j = 0; j < 10; j++) {
-                a = occupancy_upper_bounds[i];
-                occupancy_upper_bounds[i] = ceil(occupancy_upper_bounds[i + 1] + 50*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5));
+                a = occupancy_ub[i];
+                occupancy_ub[i] = ceil(occupancy_ub[i + 1] + 50*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5));
             }
         }
     }
 
     for (unsigned int i = 0; i < NB_DAYS; i++){
-        if (i < NB_DAYS - 1 && occupancy_lower_bounds[i] > MIN_NB_PEOPLE_PER_DAY && occupancy_upper_bounds[i] <= occupancy_lower_bounds[i + 1]){// &&
-            //(occupancy_lower_bounds[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_lower_bounds[i], 0.5+(occupancy_lower_bounds[i + 1] - occupancy_lower_bounds[i])/50.) > 500){
-            //std::cout << i << " " << occupancy_lower_bounds[i] << " " << occupancy_lower_bounds[i + 1] << " lower bound became ";
+        if (i < NB_DAYS - 1 && occupancy_lb[i] > MIN_NB_PEOPLE_PER_DAY && occupancy_ub[i] <= occupancy_lb[i + 1]){// &&
+            //(occupancy_lb[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_lb[i], 0.5+(occupancy_lb[i + 1] - occupancy_lb[i])/50.) > 500){
+            //std::cout << i << " " << occupancy_lb[i] << " " << occupancy_lb[i + 1] << " lower bound became ";
             unsigned int a;
             for (unsigned int j = 0; j < 10; j++) {
-                a = occupancy_lower_bounds[i];
-                occupancy_lower_bounds[i] = std::max(a, (unsigned int)(std::max(0., ceil(occupancy_lower_bounds[i + 1] - 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5)))));
+                a = occupancy_lb[i];
+                occupancy_lb[i] = std::max(a, (unsigned int)(std::max(0., ceil(occupancy_lb[i + 1] - 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5)))));
             }
-            //std::cout << occupancy_lower_bounds[i] << std::endl;
-            a = occupancy_lower_bounds[i];
-            occupancy_upper_bounds[i + 1] = std::min(occupancy_upper_bounds[i + 1], (unsigned int)(floor(occupancy_upper_bounds[i] + 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5))));
-            //std::cout << preset_lower_bound[i] << " " << occupancy_lower_bounds[i] << " " << occupancy_upper_bounds[i] << " " << occupancy_lower_bounds[i + 1] << " " << occupancy_upper_bounds[i + 1] << " " << preset_upper_bound[i + 1] << std::endl;
+            //std::cout << occupancy_lb[i] << std::endl;
+            a = occupancy_lb[i];
+            occupancy_ub[i + 1] = std::min(occupancy_ub[i + 1], (unsigned int)(floor(occupancy_ub[i] + 50.*(log(400.*max_day_cost/float(a - MIN_NB_PEOPLE_PER_DAY))/log(a) - 0.5))));
+            //std::cout << preset_lower_bound[i] << " " << occupancy_lb[i] << " " << occupancy_ub[i] << " " << occupancy_lb[i + 1] << " " << occupancy_ub[i + 1] << " " << preset_upper_bound[i + 1] << std::endl;
         }
     }
 
     std::cout << "Upper bounds:" << std::endl;
-    print_nicely(occupancy_upper_bounds);
+    print_nicely(occupancy_ub, 5);
 }
 
-void Presets::compute_day_costs_lb(const unsigned int &i) {
+float Presets::get_day_cost_lb_(const unsigned int &i) {
     unsigned int gap;
     if (i == NB_DAYS - 1)
         gap = 0;
-    else if (occupancy_upper_bounds[i] <= occupancy_lower_bounds[i + 1])
-        gap = occupancy_lower_bounds[i + 1] - occupancy_upper_bounds[i];
-    else if (occupancy_upper_bounds[i + 1] <= occupancy_lower_bounds[i])
-        gap = occupancy_lower_bounds[i] - occupancy_upper_bounds[i + 1];
+    else if (occupancy_ub[i] <= occupancy_lb[i + 1])
+        gap = occupancy_lb[i + 1] - occupancy_ub[i];
+    else if (occupancy_ub[i + 1] <= occupancy_lb[i])
+        gap = occupancy_lb[i] - occupancy_ub[i + 1];
     else
         gap = 0;
-    day_costs_lower_bounds[i] = (occupancy_lower_bounds[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_lower_bounds[i], 0.5 + gap/50.);
+    return (occupancy_lb[i] - MIN_NB_PEOPLE_PER_DAY)/400.*pow(occupancy_lb[i], 0.5 + gap/50.);
+}
+
+unsigned int Presets::get_additional_day_cost_lb(const unsigned int &i) {
+    // i is a family index. we compute a lower bound on the day cost of assigning the family.
+    if (is_already_assigned[i]) return 0;
+    std::unordered_set<unsigned int> impacted_days(0);
+    for (unsigned int k = 0; k < K_MAX; k++){
+        impacted_days.emplace(family_data[i][k]);
+        if (int(family_data[i][k]) - 1 >= 0)
+            impacted_days.emplace(family_data[i][k] - 1);
+    }
+    unsigned int min_possible_increase = 500;
+    for (unsigned int k_assign = 0; k_assign < K_MAX; k_assign++){
+        if (preset_occupancy[family_data[i][k_assign]] + family_data[i][NB_CHOICES] > occupancy_ub[family_data[i][k_assign]])
+            continue;
+        // simulate assigning to k
+        std::vector<unsigned int> occupancy_ub_save(K_MAX);
+        std::vector<unsigned int> occupancy_lb_save(K_MAX);
+        for (unsigned int k = 0; k < K_MAX; k++){
+            unsigned int &current_day = family_data[i][k];
+            occupancy_lb_save[k] = occupancy_lb[current_day];
+            occupancy_ub_save[k] = occupancy_ub[current_day];
+            if (k == k_assign)
+                occupancy_lb[current_day] = std::max(occupancy_lb[current_day], preset_occupancy[current_day] + family_data[i][NB_CHOICES]);
+            else
+                occupancy_ub[current_day] = std::min(occupancy_ub[current_day], occupancy_explicit_ub[current_day] - family_data[i][NB_CHOICES]);
+        }
+        // compute the increase
+        int possible_increase = 0;
+        for (const unsigned int& current_day: impacted_days)
+            possible_increase += get_day_cost_lb_(current_day) - day_costs_lb[current_day];
+        if (possible_increase < min_possible_increase)
+            min_possible_increase = possible_increase;
+        // restore the previous bounds
+        for (int k = K_MAX - 1; k >= 0; k--){
+            unsigned int &current_day = family_data[i][k];
+            occupancy_lb[current_day] = occupancy_lb_save[k];
+            occupancy_ub[current_day] = occupancy_ub_save[k];
+        }
+    }
+    return min_possible_increase;
 }
 
 void Presets::compute_all_bounds() {
@@ -152,23 +187,27 @@ void Presets::compute_all_bounds() {
 
     t0 = clock();
     std::cout << "Nb of families preset and number of people" << std::endl;
-    print_nicely(preset_occupancy);
-    print_nicely(preset_cardinal);
+    print_nicely(preset_occupancy, 5);
+    print_nicely(preset_cardinal, 5);
     std::cout << "time spent on printing: " << clock() - t0 << std::endl;
 
     t0 = clock();
     for (unsigned int i = 0; i < NB_DAYS; i++)
-        compute_day_costs_lb(i);
+        day_costs_lb[i] = get_day_cost_lb_(i);
     compute_bottleneck_bounds();
     std::cout << "time spent on bottleneck bounds: " << clock() - t0 << std::endl;
     t0 = clock();
     compute_k_fold_bottleneck_ub();
     std::cout << "time spent on k-fold bottleneck bounds: " << clock() - t0 << std::endl;
-    day_cost_lower_bound = 0;
     t0 = clock();
+    day_cost_lower_bound = 0;
     for (unsigned int i = 0; i < NB_DAYS; i++)
-        day_cost_lower_bound += get_day_cost_lower_bound(i);
-    std::cout << "time spent on day costs bounds: " << clock() - t0 << std::endl;
+        day_cost_lower_bound += get_day_cost_lb_(i);
+    std::cout << "time spent on computing the day costs lower bound: " << clock() - t0 << std::endl;
+    t0 = clock();
+    for (unsigned int i = 0; i < NB_FAMILIES; i++)
+        day_cost_lower_bound += get_additional_day_cost_lb(i);
+    std::cout << "time spent on computing the per-family additional day costs: " << clock() - t0 << std::endl;
     std::cout << "cost from days is at least " << day_cost_lower_bound;
     if (day_cost_lower_bound < 4500)
         std::cout << " before being set to 4500";
@@ -187,7 +226,7 @@ void Presets::compute_bottleneck_bounds() {
             current_family = sorted_families[i].first;
             current_day = family_data[current_family][k];
             if (presets[current_family][k] == ALLOWED &&
-                possible_family_cum_sizes[current_day] + family_data[current_family][NB_CHOICES] <= occupancy_upper_bounds[current_day] - preset_occupancy[current_day]){
+                possible_family_cum_sizes[current_day] + family_data[current_family][NB_CHOICES] <= occupancy_ub[current_day] - preset_occupancy[current_day]){
                 possible_family_cum_sizes[current_day] += family_data[current_family][NB_CHOICES];
                 bottleneck_bounds[current_day].second++;
             }
@@ -199,7 +238,7 @@ void Presets::compute_bottleneck_bounds() {
             current_family = sorted_families[NB_FAMILIES - i - 1].first;
             current_day = family_data[current_family][k];
             if (presets[current_family][k] == ALLOWED &&
-                possible_family_cum_sizes[current_day] < occupancy_lower_bounds[current_day] - preset_occupancy[current_day]){
+                possible_family_cum_sizes[current_day] < occupancy_lb[current_day] - preset_occupancy[current_day]){
                 possible_family_cum_sizes[current_day] += family_data[current_family][NB_CHOICES];
                 bottleneck_bounds[current_day].first++;
             }
@@ -210,14 +249,14 @@ void Presets::compute_bottleneck_bounds() {
         unsigned int n = nb_chiffres(bottleneck_bounds[i].first);
         if (n >= 4)
             throw std::logic_error("Why is this integer so big ?");
-        std::cout << bottleneck_bounds[i].first << std::string(4 - n, ' ');
+        std::cout << bottleneck_bounds[i].first << std::string(5 - n, ' ');
     }
     std::cout << std::endl;
     for (unsigned int i = 0; i < NB_DAYS; i++) {
         unsigned int n = nb_chiffres(bottleneck_bounds[i].second);
         if (n >= 4)
             throw std::logic_error("Why is this integer so big ?");
-        std::cout << bottleneck_bounds[i].second << std::string(4 - n, ' ');
+        std::cout << bottleneck_bounds[i].second << std::string(5 - n, ' ');
     }
     std::cout << std::endl;
 }
@@ -231,7 +270,7 @@ void Presets::compute_k_fold_bottleneck_ub() {
             current_fam = sorted_families[i].first;
             current_day = family_data[current_fam][k];
             if (presets[current_fam][k] == ALLOWED &&
-                pos_fam_cum_sizes[current_day][k] + family_data[current_fam][NB_CHOICES] <= occupancy_upper_bounds[current_day] - preset_occupancy[current_day]){
+                pos_fam_cum_sizes[current_day][k] + family_data[current_fam][NB_CHOICES] <= occupancy_ub[current_day] - preset_occupancy[current_day]){
                 pos_fam_cum_sizes[current_day][k] += family_data[current_fam][NB_CHOICES];
                 k_fold_bottleneck_bounds[current_day][k]++;
             }
@@ -263,7 +302,7 @@ int Presets::get_largest_unassigned_strategic_family() const {
         unsigned int i = largest[m];
         unsigned int best_k = K_MAX, second_best_k = K_MAX;
         for (unsigned int k = 0; k < K_MAX; k++){
-            if (preset_occupancy[family_data[i][k]] + family_data[i][NB_CHOICES] > occupancy_upper_bounds[family_data[i][k]])
+            if (preset_occupancy[family_data[i][k]] + family_data[i][NB_CHOICES] > occupancy_ub[family_data[i][k]])
                 continue;
             if (k > best_k && k < second_best_k)
                 second_best_k = k;

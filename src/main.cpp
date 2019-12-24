@@ -32,7 +32,7 @@ unsigned int brute_force(Presets &presets,
                          clock_t &time_graph,
                          clock_t &time_bounds){
     if (presets.get_nb_assignments() == NB_FAMILIES){
-        unsigned int cost = presets.get_presets_costs() + presets.get_day_cost_lower_bound();
+        unsigned int cost = presets.get_presets_costs() + presets.get_day_cost_lb();
         if (cost <= BEST_SOLUTION)
             presets.write_solution("../../solutions/flow_solution_" + std::to_string(cost) + ".csv");
         return cost;
@@ -59,7 +59,7 @@ unsigned int brute_force(Presets &presets,
         return cost;
     }
     //unsigned int current_family = G.get_overload_family();
-    //unsigned int current_family = (unsigned int)(presets.get_largest_unassigned_families()[0]);
+    unsigned int current_family = (unsigned int)(presets.get_largest_unassigned_families()[0]);
     //unsigned int current_family = G.get_largest_least_dispersed_family();
     //unsigned int current_family = presets.get_largest_unassigned_strategic_family();
 //    if (current_family == - 1) {
@@ -171,7 +171,8 @@ int main() {
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         unsigned int k = A.get_ith_family(i)->get_k();
         //if (i % 800 != 0 && k < K_MAX)
-        if (i > 14 && k <= 3)
+        if (i > 30 && k <= 3)
+        //if (i != 0)
             presets.assign_family(i, k, false);
     }
     presets.compute_all_bounds();
@@ -187,47 +188,19 @@ int main() {
     std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost() <<" and with true cost " << G.get_true_flow_cost() << std::endl;
     G.check_flow();
     G.show_schedule();
-//    G.get_overload_family();
+    G.get_overload_family();
 //    std::cout << "dispersion is lower than " <<G.get_most_dispersed_family().second << std::endl;
 //    std::cout << "size of largest unassigned "<<presets.get_family_size(presets.get_largest_unassigned_family()) << std::endl;
 
-    unsigned int nb_nodes = 0;
-    clock_t t0 = clock();
-    clock_t time_graph = 0;
-    clock_t time_bounds = 0;
-    std::cout << "Best solution seen is " << brute_force(presets, family_data, nb_nodes, time_graph, time_bounds) << std::endl;
-    std::cout << "Number of nodes is " << nb_nodes << std::endl;
-    std::cout << "Time spent computing flows is " << time_graph << std::endl;
-    std::cout << "Time spent computing bounds is " << time_bounds << std::endl;
-    std::cout << clock() - t0 << std::endl;
-
-//    do_greedy_descent_in_search_tree(presets, family_data);
-//    write_solution_(family_data, presets, "../../solutions/flow_solution.csv");
-//    Assignment A2(family_data, get_solution(family_data, presets));A2.get_cost();A2.stats();
-
-
-
-//    Graph G = Graph();
-//    std::cout << "flow is " << G.get_current_flow() << std::endl;
-//    G.find_and_apply_augmenting_path();
-//    std::vector<Arc *> path = G.get_shortest_path();
-//    std::cout << "shortest path" << std::endl;
-//    for (unsigned int i = 0; i < path.size(); i++){
-//        std::cout << path[i]->get_id() << std::endl;
-//    }
-//    G.show_distances();
-//    std::cout << "flow is " << G.get_current_flow() << std::endl;
-//    G.find_and_apply_augmenting_path();
-//    std::cout << "flow is " << G.get_current_flow() << std::endl;
-//    G.find_and_apply_augmenting_path();
-//    std::cout << "flow is " << G.get_current_flow() << std::endl;
-//
-//    G = Graph();
-//    G.compute_max_flow_min_cost();
-//    std::cout << "flow is " << G.get_current_flow() << " with cost " << G.get_flow_cost() << std::endl;
-
-        // std::vector<unsigned int> flow_solution = G.get_solution();
-    //write_solution(flow_solution, "../../solutions/flow_solution.csv");
+//    unsigned int nb_nodes = 0;
+//    clock_t t0 = clock();
+//    clock_t time_graph = 0;
+//    clock_t time_bounds = 0;
+//    std::cout << "Best solution seen is " << brute_force(presets, family_data, nb_nodes, time_graph, time_bounds) << std::endl;
+//    std::cout << "Number of nodes is " << nb_nodes << std::endl;
+//    std::cout << "Time spent computing flows is " << time_graph << std::endl;
+//    std::cout << "Time spent computing bounds is " << time_bounds << std::endl;
+//    std::cout << clock() - t0 << std::endl;
 
     return 0;
 }
