@@ -58,6 +58,7 @@ public:
     Family* get_ith_family(unsigned int i) const{return assigned_families[i];}
     void compute_cost();
     bool is_Friday_like(){return (N == MIN_NB_PEOPLE_PER_DAY && previous_day->N > MIN_NB_PEOPLE_PER_DAY + 80);}
+    unsigned int get_assignments_costs() const;
 };
 
 class Assignment {

@@ -74,52 +74,61 @@ private:
     std::vector<unsigned int> family_indexes, day_indexes;
     std::vector<int> full_family_indexes;
     unsigned int source_index, sink_index;
-    bool can_we_add_mM_valued_flows = false;
-    bool can_we_add_zeros_valued_flows = false;
-    bool debug = true;
+    int last_path_value;
     const Presets &presets;
+    //std::vector<PriorPath> prior_paths;
+    std::priority_queue<PriorPath, std::vector<PriorPath>, PriorPath_compare> prior_paths;
+    int path_index_to_try = -1;
+
 public:
+    bool debug = false;
     Graph(const Presets &presets, const bool &toy);
     Graph(const Presets &presets);
     ~Graph(){
         delete [] V;
         delete [] A;
     }
+    unsigned int get_const_cost(const unsigned int &i, const unsigned int &k) const;
+    unsigned int get_marg_cost(const unsigned int &i, const unsigned int &k) const;
 
     bool find_and_apply_augmenting_path();
+    void add_flow_to_augmenting_path(std::vector<Arc*> path, const unsigned int& additional_flow);
     void compute_max_flow_min_cost();
-    Presets get_solution();
-    unsigned int get_current_flow() const;
     std::vector<Arc*> get_shortest_path();
+    void add_all_prior_paths();
+    unsigned int add_obvious_flow(
+            const unsigned int &family_index,
+            const std::vector<unsigned int> &turns,
+            const unsigned int &flow_quantity = 0);
+    void update_distances();
+    void apply_Bellman_Ford(std::queue<Vertex*> &Q);
+    PriorPath process_prior_path(const PriorPath& p);
+    void inspect_distances() const;
+    unsigned int get_ith_day_flow(unsigned int i) const;
+    unsigned int get_ith_day_capa(unsigned int i) const;
+
+    void clear_flow();
+    void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k);
+    void set_prior_paths(const FamilyDistribution &my_distribution);
+    FamilyDistribution get_distribution();
+    Presets get_solution();
+
+    unsigned int get_current_flow() const;
     int get_flow_cost() const;
     int get_true_flow_cost() const;
     void init_distances_and_predecessors();
-    void add_m2M_valued_flows();
-    void add_mM_valued_flows();
-    void add_zero_valued_flows();
-    void add_obvious_flow(
-            const unsigned int &family_index,
-            const std::vector<unsigned int> &turns,
-            const unsigned int &flow_quantity = 0,
-            const bool &force = false);
-    void update_distances();
-    void apply_Bellman_Ford(std::queue<Vertex*> &Q);
-    void show_distances() const;
-    void show_schedule() const;
-    void show_dispersion() const;
-    std::vector<unsigned int> get_family_dispersion() const;
-    uint_pair get_most_dispersed_family() const;
-    unsigned int get_largest_least_dispersed_family() const;
-    std::vector<float> get_real_day_costs() const;
-    int get_overload_family() const;
     void check_flow(const bool &check_maximal_flow = true);
     void check_day_costs_are_ok() const;
     bool day_costs_are_ok(const bool & throw_error = false) const;
     bool is_flow_maximal(const bool &throw_error = false) const;
-    void clear_flow();
-    void add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people);
-    void inspect_distances() const;
-    unsigned int get_ith_day_flow(unsigned int i) const;
-    unsigned int get_ith_day_capa(unsigned int i) const;
+    void show_distances() const;
+    void show_schedule() const;
+    void show_dispersion() const;
+    std::vector<unsigned int> get_family_dispersion() const;
+    std::vector<unsigned int> get_day_occupancy() const;
+    uint_pair get_most_dispersed_family() const;
+    unsigned int get_largest_least_dispersed_family() const;
+    std::vector<float> get_real_day_costs() const;
+    int get_overload_family() const;
 };
 

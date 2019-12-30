@@ -1,5 +1,4 @@
 #include "tools.h"
-#include <algorithm>
 
 std::vector<unsigned int> read_solution(const std::string &filename){
     std::ifstream targetFile (filename.c_str());
@@ -75,12 +74,6 @@ bool is_an_assignation(const preset &p) {
     return (count == K_MAX - 1);
 }
 
-bool myfunction (uint_pair i, uint_pair j) { return (i.second < j.second);}
-
-void sort_by_second(std::vector<uint_pair> &myvector) {
-    std::sort (myvector.begin(), myvector.end(), myfunction);
-}
-
 void print_nicely(const std::vector<unsigned int> &my_vector, const unsigned int &size_ub) {
     for (unsigned int i = 0; i < my_vector.size(); i++) {
         unsigned int n = nb_chiffres(my_vector[i]);
@@ -91,3 +84,24 @@ void print_nicely(const std::vector<unsigned int> &my_vector, const unsigned int
     std::cout << std::endl;
 }
 
+bool PriorPath_compare::operator()(PriorPath i, PriorPath j) {
+    return i.cost > j.cost;
+}
+
+std::vector<bool> get_binary_rep(unsigned int x, const unsigned int &n) {
+    std::vector<bool> res(n, false);
+    for (int i = n - 1; i >= 0; i--){
+        if (x >= pow(2, i)){
+            x -= pow(2, i);
+            res[n - i - 1] = true;
+        }
+    }
+    return res;
+}
+
+std::vector<unsigned int> get_unique_vector(const std::vector<unsigned int> &v) {
+    std::unordered_set<unsigned int> my_set(0);
+    for (unsigned int i = 0; i < v.size(); i++)
+        my_set.emplace(v[i]);
+    return std::vector<unsigned int>(my_set.begin(), my_set.end());
+}

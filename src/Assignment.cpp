@@ -94,6 +94,13 @@ int Day::add_family(Family *family) {
     }
 }
 
+unsigned int Day::get_assignments_costs() const {
+    unsigned int res = 0;
+    for (unsigned int j = 0; j < assigned_families.size(); j++)
+        res += get_ith_family(j)->get_cost();
+    return res;
+}
+
 Family::Family(const unsigned int &id,
                const unsigned int &n_people,
                const std::vector<Day*> &preferred_days_,
@@ -260,6 +267,12 @@ void Assignment::stats() const {
         std::cout << cost_size[i] << std::string(7-nb_chiffres(cost_size[i]) + nb_chiffres(i), ' ');
     }
     std::cout << std::endl << std::endl;
+
+    // the cost of the families of every day
+    std::vector<unsigned int> tmp(NB_DAYS, 0);
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        tmp[i] = days[i].get_assignments_costs();
+    print_nicely(tmp, 5);
 
 //    std::vector<unsigned int> count_crowdedness(301, 0);
 //    std::vector<unsigned int> cost_crowdedness(301, 0);

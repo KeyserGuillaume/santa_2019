@@ -1,3 +1,4 @@
+#include <nss.h>
 #include "Flow.h"
 #include "Presets.h"
 
@@ -32,11 +33,8 @@ Graph::Graph(const Presets &presets, const bool &toy): presets(presets) {
     max_possible_flow = 3;
 }
 
-
-std::vector<float> Graph::get_real_day_costs() const {
-    std::vector<float> real_costs(NB_DAYS, 0);
+std::vector<unsigned int> Graph::get_day_occupancy() const {
     std::vector<unsigned int> day_occupancy(NB_DAYS, 0);
-    unsigned int gap;
     for (unsigned int i = 0; i < NB_DAYS; i++){
         day_occupancy[i] = get_ith_day_flow(i);
     }
@@ -45,6 +43,13 @@ std::vector<float> Graph::get_real_day_costs() const {
             if (presets[i][k] == COMPULSORY)
                 day_occupancy[presets.get_family_data(i, k)] += presets.get_family_data(i, NB_CHOICES);
 
+    return day_occupancy;
+}
+
+std::vector<float> Graph::get_real_day_costs() const {
+    std::vector<float> real_costs(NB_DAYS, 0);
+    std::vector<unsigned int> day_occupancy = get_day_occupancy();
+    unsigned int gap;
     std::cout << "Occupancy:" << std::endl;
     print_nicely(day_occupancy, 5);
 
@@ -86,7 +91,7 @@ int Graph::get_overload_family() const {
     for (unsigned int i = 0; i < NB_DAYS; i++) {
         differences[i] = floor(real_costs[i] - presets.get_day_cost_lb(i));
     }
-    print_nicely(differences, 5);
+    print_nicely(differences, 8);
     std::cout << std::endl;
     unsigned int maxi = 0;
     unsigned int i_maxi = 0;
@@ -96,7 +101,6 @@ int Graph::get_overload_family() const {
             i_maxi = i;
         }
     }
-    //std::cout << maxi << std::endl;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         for (unsigned int k = 0; k < K_MAX; k++)
             if (full_family_indexes[i] != -1 &&
@@ -104,6 +108,26 @@ int Graph::get_overload_family() const {
                 return i;
 
     return -1;
+}
+
+unsigned int Graph::get_const_cost(const unsigned int &i, const unsigned int &k) const {
+    unsigned int nb_assignments = presets.get_nb_assignments();
+    if (nb_assignments > NB_FAMILIES - 15)
+        return CONSTANT_COST[k] + presets.get_family_size(i) * MARGINAL_COST[k];
+    else if (nb_assignments > NB_FAMILIES - 100)
+        return CONSTANT_COST[k] + MARGINAL_COST[k];
+    else
+        return MARGINAL_COST[k] + (unsigned int)(floor(CONSTANT_COST[k] / float(presets.get_family_size(i))));
+}
+
+unsigned int Graph::get_marg_cost(const unsigned int &i, const unsigned int &k) const {
+    unsigned int nb_assignments = presets.get_nb_assignments();
+    if (nb_assignments > NB_FAMILIES - 15)
+        return 0;
+    else if (nb_assignments > NB_FAMILIES - 100)
+        return MARGINAL_COST[k];
+    else
+        return MARGINAL_COST[k] + (unsigned int)(floor(CONSTANT_COST[k] / float(presets.get_family_size(i))));
 }
 
 Graph::Graph(const Presets &presets) : presets(presets) {
@@ -124,7 +148,7 @@ Graph::Graph(const Presets &presets) : presets(presets) {
     unsigned int nb_assignments = presets.get_nb_assignments();
     n_V = 1 + 3*(NB_FAMILIES - nb_assignments) + K_MAX*NB_DAYS + 2*NB_DAYS + 1;
     V = new Vertex [n_V];
-    n_A = 3*(NB_FAMILIES - nb_assignments) + 2*((NB_FAMILIES - nb_assignments)*K_MAX - presets.get_nb_forbidden_assignments()) + K_MAX*NB_DAYS + 4*NB_DAYS;
+    n_A = 3*(NB_FAMILIES - nb_assignments) + 2*(NB_FAMILIES - nb_assignments)*K_MAX + K_MAX*NB_DAYS + 4*NB_DAYS;
     A = new Arc [n_A];
     unsigned int next_vertex_index = 0, next_arc_index = 0;
     family_indexes.clear();
@@ -192,11 +216,17 @@ Graph::Graph(const Presets &presets) : presets(presets) {
         A[next_arc_index] = Arc(next_arc_index, V + family_index, V + family_marg_cost_middleman, presets.get_family_size(i) - 1, 0);
         next_arc_index++;
         for (unsigned int k = 0; k < K_MAX; k++){
-            if (presets[i][k] != ALLOWED) continue;
+            unsigned int capa_multiplicator = (presets[i][k] == FORBIDDEN) ? 0 : 1;
             unsigned int j = presets.get_family_data(i, k);
-            A[next_arc_index] = Arc(next_arc_index, V + family_const_cost_middleman, V + const_bottleneck_indexes[j][k], 1, CONSTANT_COST[k]);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_const_cost_middleman, V + const_bottleneck_indexes[j][k], 1, CONSTANT_COST[k] + MARGINAL_COST[k]);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_const_cost_middleman, V + const_bottleneck_indexes[j][k], 1, CONSTANT_COST[k] + presets.get_family_size(i) * MARGINAL_COST[k]);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_const_cost_middleman, V + const_bottleneck_indexes[j][k], 1, floor(ALPHA*(CONSTANT_COST[k] + MARGINAL_COST[k]) + (1 - ALPHA)*(CONSTANT_COST[k]/float(presets.get_family_size(i)) + MARGINAL_COST[k])));
+            A[next_arc_index] = Arc(next_arc_index, V + family_const_cost_middleman, V + const_bottleneck_indexes[j][k], capa_multiplicator, get_const_cost(i, k));
             next_arc_index++;
-            A[next_arc_index] = Arc(next_arc_index, V + family_marg_cost_middleman, V + day_indexes[j], presets.get_family_size(i) - 1, MARGINAL_COST[k]);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_marg_cost_middleman, V + day_indexes[j], presets.get_family_size(i) - 1, MARGINAL_COST[k]);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_marg_cost_middleman, V + day_indexes[j], presets.get_family_size(i) - 1, 0);
+            //A[next_arc_index] = Arc(next_arc_index, V + family_marg_cost_middleman, V + day_indexes[j], presets.get_family_size(i) - 1, floor(ALPHA*(MARGINAL_COST[k]) + (1 - ALPHA)*(CONSTANT_COST[k]/float(presets.get_family_size(i)) + MARGINAL_COST[k])));
+            A[next_arc_index] = Arc(next_arc_index, V + family_marg_cost_middleman, V + day_indexes[j], capa_multiplicator * (presets.get_family_size(i) - 1), get_marg_cost(i, k));
             next_arc_index++;
         }
     }
@@ -223,13 +253,31 @@ Graph::Graph(const Presets &presets) : presets(presets) {
         if (!presets.is_family_alr_assigned(i))
             max_possible_flow += presets.get_family_size(i);
 
-    add_m2M_valued_flows();
     check_flow(false);
     init_distances_and_predecessors();
+    add_all_prior_paths();
+    path_index_to_try = 0;
 }
 
 bool Graph::find_and_apply_augmenting_path() {
+    // not very well-named anymore, this method actually checks that the paths in prior_paths
+    // can't produce some flow before doing what it is named for.
+    // first, find a shortest path and its cost (last_path_value)
     std::vector<Arc*> path = get_shortest_path();
+    if (!prior_paths.empty() && prior_paths.top().cost <= last_path_value) {
+        while (!prior_paths.empty() && prior_paths.top().cost <= last_path_value) {
+            PriorPath p = prior_paths.top();
+            prior_paths.pop();
+            PriorPath new_p = process_prior_path(p);
+            if (new_p.turns.size() > 0)
+                prior_paths.push(new_p);
+        }
+        return true;
+    }
+
+    if (prior_paths.empty() && flow < max_possible_flow)
+        add_all_prior_paths();
+
     if (path.size() == 0) return false;
 
     unsigned int additional_flow = 10000; // big
@@ -246,7 +294,17 @@ bool Graph::find_and_apply_augmenting_path() {
         }
     }
 
-    current_index = source_index;
+    add_flow_to_augmenting_path(path, additional_flow);
+
+    flow += additional_flow;
+    if (debug) check_flow(false);
+
+    return true;
+}
+
+
+void Graph::add_flow_to_augmenting_path(std::vector<Arc *> path, const unsigned int &additional_flow) {
+    unsigned int current_index = source_index;
     for (unsigned int i = 0; i < path.size(); i++){
         Arc* a = path[i];
         if (a->get_v()->get_id() == current_index){
@@ -258,23 +316,15 @@ bool Graph::find_and_apply_augmenting_path() {
             a->add_to_flow(additional_flow);
         }
     }
-
-    flow += additional_flow;
-    if (debug) check_flow(false);
-
-    return true;
 }
+
 
 void Graph::compute_max_flow_min_cost() {
     unsigned int i = 0;
     while(find_and_apply_augmenting_path()){
         i++;
         if (i%50 == 0)
-            std::cout << "flow is " << get_current_flow() << " with cost " << get_flow_cost() << " and paths have length " << get_shortest_path().size() << std::endl;
-        if (can_we_add_zeros_valued_flows)
-            add_zero_valued_flows();
-        if (can_we_add_mM_valued_flows)
-            add_mM_valued_flows();
+            std::cout << "flow is " << get_current_flow() << " with cost " << get_flow_cost() << " and paths have length " << get_shortest_path().size() << " and cost " << last_path_value << std::endl;
     }
 }
 
@@ -305,8 +355,6 @@ void Graph::init_distances_and_predecessors() {
     while (!Q.empty()) {
         apply_Bellman_Ford(Q);
     }
-    if (distances[sink_index] == 0)
-        can_we_add_zeros_valued_flows = true;
 }
 
 void Graph::update_distances() {
@@ -397,17 +445,13 @@ void Graph::update_distances() {
 }
 
 
-std::vector<Arc*> Graph::get_shortest_path(){
-    if (flow < 0.8*max_possible_flow) // not a good strategy
+std::vector<Arc*> Graph::get_shortest_path() {
+    if (flow < 0.8 * max_possible_flow) // not a good strategy
         update_distances();
     else
         init_distances_and_predecessors();
 
-    if (distances[sink_index] == 0)
-        can_we_add_zeros_valued_flows = true;
-
-    if (distances[sink_index] == -UPPER_BOUND)
-        can_we_add_mM_valued_flows = true;
+    last_path_value = distances[sink_index];
 
     Vertex *w; Arc* a;
 
@@ -578,7 +622,7 @@ Presets Graph::get_solution() {
             Arc* a_marg = (V + full_family_indexes[i])->get_ith_outgoing(1)->get_v()->get_ith_outgoing(j);
             if (a_marg->has_flow() && a_const->has_flow()){
                 for (unsigned int k = 0; k < K_MAX; k++){
-                    if (a_const->get_cost() == CONSTANT_COST[k] && a_marg->get_cost() == MARGINAL_COST[k]){
+                    if (a_const->get_cost() == get_const_cost(i, k) && a_marg->get_cost() == get_marg_cost(i, k)){
                         solution.assign_family(i, k);
                         if (a_const->has_capacity_left()) throw std::logic_error("What is wrong here ?");
                         found = true;
@@ -620,13 +664,14 @@ void Graph::check_flow(const bool &check_maximal_flow) {
 
     if (check_maximal_flow)
         is_flow_maximal(true);
-
 }
 
 
 bool Graph::is_flow_maximal(const bool &throw_error) const {
-    for (unsigned int i = 0; i < full_family_indexes.size(); i++) {
-        if (full_family_indexes[i] != -1 && (V + full_family_indexes[i])->get_ith_incoming(0)->has_capacity_left()) {
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        if (full_family_indexes[i] == -1) continue;
+        Arc *a = (V + full_family_indexes[i])->get_ith_incoming(0);
+        if (a->has_capacity_left()) {
             if (throw_error) throw std::logic_error("Why do I have this capacity left ?");
             return false;
         }
@@ -641,56 +686,29 @@ bool Graph::is_flow_maximal(const bool &throw_error) const {
     return true;
 }
 
-void Graph::add_m2M_valued_flows() {
-
-    // flows of value - 2*UPPER_BOUND
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({0, 0, 0, 0, 0}));
-}
-
-void Graph::add_mM_valued_flows() {
-    // flows of value - UPPER_BOUND
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({0, 0, 0, 0, 1}));
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({0, 0, 0, 1, 0}));
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({1, 0, 0}));
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int>({1, 1, 0}));
-    if (debug) check_flow(false);
-
-}
-
-void Graph::add_zero_valued_flows() {
-    // flows of value 0
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({0, 0, 0, 1, 1}));
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({1, 0, 0, 1}));
-    for (unsigned int i = 0; i < family_indexes.size(); i++)
-        add_obvious_flow(family_indexes[i], std::vector<unsigned int> ({1, 1, 1}));
-    if (debug) check_flow(false);
-}
-
-void Graph::add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity, const bool &force) {
+unsigned int Graph::add_obvious_flow(const unsigned int &family_index, const std::vector<unsigned int> &turns, const unsigned int &flow_quantity) {
+    if (full_family_indexes[family_index] == -1)
+        return 0;
     std::vector<Arc*> path(0);
-    Vertex* w = V + family_index;
+    Vertex* w = V + full_family_indexes[family_index];
+//    Vertex* tmp = w;
     Arc* a = w->get_ith_incoming(0);
-    if (!a->has_capacity_left()) return;
+    if (!a->has_capacity_left()) return 0;
     path.push_back(a);
     unsigned int additional_flow = a->get_capa() - a->get_flow();
     for (unsigned int i = 0; i < turns.size(); i++){
         a = w->get_ith_outgoing(turns[i]);
-        if ((!force && a->get_cost() > 0) || !a->has_capacity_left()) return;
+        if (!a->has_capacity_left()) return 0;
         path.push_back(a);
         additional_flow = std::min(additional_flow, a->get_capa() - a->get_flow());
         w = a->get_v();
     }
     if (flow_quantity)
-        additional_flow = flow_quantity;
+        additional_flow = std::min(additional_flow, flow_quantity);
     for (unsigned int i = 0; i < path.size(); i++)
         path[i]->add_to_flow(additional_flow);
+    flow += additional_flow;
+    return additional_flow;
 }
 
 void Graph::clear_flow() {
@@ -698,20 +716,19 @@ void Graph::clear_flow() {
         (A + i)->clear_flow();
 }
 
-void Graph::add_flow_for_assigning_family(const unsigned int &family_idx, const unsigned int &k, const unsigned int &n_people) {
-    // probably needs updating
-    //std::cout << "This add_flow_for_assigning_family function will give unreliable results if the presets contain any FORBIDDEN values" << std::endl;
+void Graph::add_flow_for_assigning_family(const unsigned int &i, const unsigned int &k) {
     if (k >= K_MAX) throw std::invalid_argument("k is greater than K_MAX");
-    if (full_family_indexes[family_idx] == 1) throw std::invalid_argument("You can't assign flow for a family already assigned");
-    if ((V + full_family_indexes[family_idx])->get_ith_outgoing(k + 1)->get_v()->get_ith_outgoing(0)->has_capacity_left())
-        add_obvious_flow(full_family_indexes[family_idx], std::vector<unsigned int>({0, k, 0, 0}), 1, true);
-    else
-        add_obvious_flow(full_family_indexes[family_idx], std::vector<unsigned int>({0, k, 0, 1, 0}), 1, true);
-    Arc* a = (V + full_family_indexes[family_idx])->get_ith_outgoing(2*k + 1)->get_v()->get_ith_outgoing(0);
-    unsigned int value = std::min(n_people - 1, a->get_capa() - a->get_flow());
-    if (a->has_capacity_left())
-        add_obvious_flow(full_family_indexes[family_idx], std::vector<unsigned int>({1, k, 0}), value, true);
-    add_obvious_flow(full_family_indexes[family_idx], std::vector<unsigned int>({1, k, 1, 0}), n_people - 1 - value, true);
+    std::priority_queue<PriorPath, std::vector<PriorPath>, PriorPath_compare> tmp_prior_paths;
+    unsigned int n_people = presets.get_family_size(i);
+    tmp_prior_paths.push(PriorPath(-2 * UPPER_BOUND + get_const_cost(i, k), i, std::vector<unsigned int>({0, k, 0, 0, 0}), 1));
+    tmp_prior_paths.push(PriorPath(-UPPER_BOUND + get_marg_cost(i, k), i, std::vector<unsigned int>({1, k, 0}), n_people - 1));
+    while (!tmp_prior_paths.empty()){
+        PriorPath p = tmp_prior_paths.top();
+        tmp_prior_paths.pop();
+        PriorPath new_p = process_prior_path(p);
+        if (new_p.turns.size() > 0)
+            tmp_prior_paths.push(new_p);
+    }
 }
 
 void Graph::inspect_distances() const {
@@ -723,4 +740,84 @@ void Graph::inspect_distances() const {
     for (unsigned int i = 0; i < day_indexes.size(); i++)
         std::cout << distances[day_indexes[i]] << std::string(10 - nb_chiffres(day_indexes[i]),' ');
     std::cout << "sink distance: " << distances[sink_index] << std::endl;
+}
+
+void Graph::add_all_prior_paths() {
+    prior_paths = std::priority_queue<PriorPath, std::vector<PriorPath>, PriorPath_compare>();
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        if (full_family_indexes[i] == -1) continue;
+        for (unsigned int k = 0; k < K_MAX - 1; k++){
+            //prior_paths.push(PriorPath(-2*UPPER_BOUND + CONSTANT_COST[k] + MARGINAL_COST[k], i, std::vector<unsigned int>({0, k, 0, 0, 0}), presets.get_family_size(i)));
+            //int const_cost = int(floor(ALPHA * (CONSTANT_COST[k] + MARGINAL_COST[k]) + (1 - ALPHA) * (CONSTANT_COST[k] / float(presets.get_family_size(i)) + MARGINAL_COST[k])));
+            prior_paths.push(PriorPath(-2 * UPPER_BOUND + get_const_cost(i, k), i, std::vector<unsigned int>({0, k, 0, 0, 0}), presets.get_family_size(i)));
+            //prior_paths.push(PriorPath(-UPPER_BOUND + MARGINAL_COST[k], i, std::vector<unsigned int>({1, k, 0}), presets.get_family_size(i)));
+            //int marg_cost = int(floor(ALPHA * (MARGINAL_COST[k]) + (1 - ALPHA) * (CONSTANT_COST[k] / float(presets.get_family_size(i)) + MARGINAL_COST[k])));
+            prior_paths.push(PriorPath(-UPPER_BOUND + get_marg_cost(i, k), i, std::vector<unsigned int>({1, k, 0}), presets.get_family_size(i)));
+        }
+    }
+}
+
+FamilyDistribution Graph::get_distribution() {
+    FamilyDistribution res(0);
+    std::vector<unsigned int>distribution;
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        if (full_family_indexes[i] == -1) {
+            res.push_back(std::pair<unsigned int, std::vector<unsigned int>>(10, std::vector<unsigned int>(0)));
+            continue;
+        }
+        // the const cost first
+        Vertex* const_cost_middleman = (V + full_family_indexes[i])->get_ith_outgoing(0)->get_v();
+        unsigned int k_const = 0;
+        while(k_const < K_MAX && !const_cost_middleman->get_ith_outgoing(k_const)->has_flow())
+            k_const++;
+        
+        // then the marginal costs
+        Vertex* marg_cost_middleman = (V + full_family_indexes[i])->get_ith_outgoing(1)->get_v();
+        distribution = std::vector<unsigned int>(K_MAX, 0);
+        for (unsigned int k = 0; k < K_MAX; k++)
+            distribution[k] += marg_cost_middleman->get_ith_outgoing(k)->get_flow();
+
+        res.push_back(std::pair<unsigned int, std::vector<unsigned int>>(k_const, distribution));
+    }
+    return res;
+}
+
+void Graph::set_prior_paths(const FamilyDistribution &my_distribution) {
+    prior_paths = std::priority_queue<PriorPath, std::vector<PriorPath>, PriorPath_compare>();
+    for (unsigned int i = 0; i < NB_FAMILIES; i++){
+        std::pair<unsigned int, std::vector<unsigned int>> distrib = my_distribution[i];
+        unsigned int k_const = distrib.first;
+        if (k_const == 10) continue; // as can be seen in function get_distribution, 10 as k_const means it was an assignation.
+        std::vector<unsigned int> distribution = distrib.second;
+        // first the const cost
+        prior_paths.push(PriorPath(-2*UPPER_BOUND + get_const_cost(i, k_const), i, std::vector<unsigned int>({0, k_const, 0, 0, 0}), 1));
+        // then the marg cost
+        for (unsigned int k = 0; k < K_MAX; k++){
+            if (distribution[k] == 0) continue;
+            prior_paths.push(PriorPath(-UPPER_BOUND + get_marg_cost(i, k), i, std::vector<unsigned int>({1, k, 0}), distribution[k]));
+        }
+    }
+}
+
+PriorPath Graph::process_prior_path(const PriorPath &p) {
+    unsigned int added_flow = add_obvious_flow(p.family_index, p.turns, p.flow_quantity);
+    int cost = -20000;
+    std::vector<unsigned int> turns(0);
+    if (added_flow < p.flow_quantity){
+        if (p.turns[0] == 0 && p.turns[3] == 0 && p.turns[4] == 0){
+            cost = p.cost + UPPER_BOUND;
+            turns = std::vector<unsigned int>({0, p.turns[1], 0, 1, 0});
+        } else if (p.turns[0] == 0 && p.turns[3] == 1 && p.turns[4] == 0){
+            cost = p.cost;
+            turns = std::vector<unsigned int>({0, p.turns[1], 0, 0, 1});
+        } else if (p.turns[0] == 0 && p.turns[3] == 0 && p.turns[4] == 1){
+            cost = p.cost + UPPER_BOUND;
+
+            turns = std::vector<unsigned int>({0, p.turns[1], 0, 1, 1});
+        } else if (p.turns[0] == 1 && p.turns[2] == 0){
+            cost = p.cost + UPPER_BOUND;
+            turns = std::vector<unsigned int>({1, p.turns[1], 1});
+        }
+    }
+    return PriorPath(cost, p.family_index, turns, p.flow_quantity - added_flow);
 }

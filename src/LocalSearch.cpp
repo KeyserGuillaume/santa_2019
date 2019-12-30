@@ -67,7 +67,7 @@ void LocalSearch::twin_paths_move(){//std::cout<<"begin"<<std::endl;
     big_is_at_Friday_like = current_day->is_Friday_like();
     // assign
     current_cost_variation += big_family->set_assigned_day(current_day);
-    unsigned int first_day_temporary_cost = first_day->get_cost();
+//    unsigned int first_day_temporary_cost = first_day->get_cost();
 
     // Initialize A
     // choose family
