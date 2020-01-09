@@ -1,5 +1,8 @@
 #include "tools.h"
 
+std::vector<bool>
+cleverly_get_possible_quantities(const unsigned int &max_allowed, const std::vector<unsigned int> &max_per_size);
+
 std::vector<unsigned int> read_solution(const std::string &filename){
     std::ifstream targetFile (filename.c_str());
     if (!targetFile.is_open()) throw std::runtime_error("No targets file found");
@@ -104,4 +107,77 @@ std::vector<unsigned int> get_unique_vector(const std::vector<unsigned int> &v) 
     for (unsigned int i = 0; i < v.size(); i++)
         my_set.emplace(v[i]);
     return std::vector<unsigned int>(my_set.begin(), my_set.end());
+}
+
+std::vector<unsigned int> get_possible_quantities(const std::vector<unsigned int> &sizes,
+                                                  const unsigned int &min_allowed,
+                                                  const unsigned int &max_allowed) {
+    if (sizes.size() > 3) {
+        std::vector<unsigned int> max_per_size(7, 0);
+        for (unsigned int i = 0; i < sizes.size(); i++)
+            max_per_size[sizes[i] - 2]++;
+        std::vector<bool> quantity_is_possible = cleverly_get_possible_quantities(max_allowed, max_per_size);
+
+        std::vector<unsigned int> res(0);
+        // push them in this order in order to make the search for best solutions faster.
+        for (int i = max_allowed; i >= int(min_allowed); i--)
+            if (quantity_is_possible[i])
+                res.push_back(i);
+        return res;
+    }
+    unsigned long n = pow(2, sizes.size());
+    std::vector<unsigned int> res (n, 0);
+    for (unsigned int i = 0; i < n; i++){
+        std::vector<bool> mask = get_binary_rep(i, sizes.size());
+        for (unsigned int j = 0; j < sizes.size(); j++)
+            if (mask[j])
+                res[i] += sizes[j];
+    }
+    std::set<unsigned int, greater> my_set;
+    for (unsigned int i = 0; i < res.size(); i++)
+        if (res[i] <= max_allowed && res[i] >= min_allowed)
+            my_set.emplace(res[i]);
+    res = std::vector<unsigned int>(my_set.begin(), my_set.end());
+    return res;
+}
+
+std::vector<bool>
+cleverly_get_possible_quantities(const unsigned int &max_allowed, const std::vector<unsigned int> &max_per_size) {
+    std::vector<bool> quantity_is_possible(max_allowed + 1, false);
+    quantity_is_possible[0] = true;
+    for (unsigned int i = 0; i < 7; i++) {
+        if (max_per_size[i] == 0) continue;
+        for (int m = max_allowed - 2; m >= 0; m--) {
+            if (!quantity_is_possible[m]) continue;
+            for (unsigned int s = 1; s <= max_per_size[i]; s++) {
+                unsigned int next_pos = m + s*(2 + i);
+                if (next_pos > max_allowed || quantity_is_possible[next_pos]) break;
+                quantity_is_possible[next_pos] = true;
+            }
+        }
+    }
+    return quantity_is_possible;
+}
+
+std::vector<bool> random_selection(const unsigned int &p, const unsigned int &n) {
+    std::vector<bool> res (n, false);
+    for (unsigned int i = 0; i < p; i++)
+        res[i] = true;
+    std::random_shuffle(res.begin(), res.end());
+    return res;
+}
+
+std::vector<bool> random_family_selection(const unsigned int &nb_families) {
+    return random_selection(nb_families, NB_FAMILIES);
+}
+
+std::vector<bool> random_day_selection(const unsigned int &nb_days) {
+    return random_selection(nb_days, NB_DAYS);
+}
+
+
+void get_differences_between_solutions(const std::vector<unsigned int> &sol1, const std::vector<unsigned int> &sol2, std::vector<bool> &is_different) {
+    for (unsigned int i = 0; i < NB_FAMILIES; i++)
+        if (sol1[i] != sol2[i])
+            is_different[i] = true;
 }

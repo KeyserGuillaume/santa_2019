@@ -12,6 +12,10 @@ class LocalSearch {
 private:
     unsigned int k;
     Assignment* A;
+    int threshold = 0;
+    int abort_threshold = 100;
+    std::vector<unsigned int> best_solution;
+    unsigned int best_solution_cost = 8000000;
     std::vector<unsigned int> count_order_change = std::vector<unsigned int>(13, 0);
     std::vector<unsigned int> count_size_moved_by_twin_paths = std::vector<unsigned int>(9, 0);
     unsigned int nb_successful_augmenting_path_0 = 0;

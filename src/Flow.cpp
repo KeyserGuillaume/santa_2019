@@ -46,8 +46,8 @@ std::vector<unsigned int> Graph::get_day_occupancy() const {
     return day_occupancy;
 }
 
-std::vector<float> Graph::get_real_day_costs() const {
-    std::vector<float> real_costs(NB_DAYS, 0);
+std::vector<double> Graph::get_real_day_costs() const {
+    std::vector<double> real_costs(NB_DAYS, 0);
     std::vector<unsigned int> day_occupancy = get_day_occupancy();
     unsigned int gap;
     std::cout << "Occupancy:" << std::endl;
@@ -68,46 +68,20 @@ void Graph::check_day_costs_are_ok() const {
 }
 
 bool Graph::day_costs_are_ok(const bool & throw_error) const {
-    std::vector<float> real_costs = get_real_day_costs();
+    std::vector<double> real_costs = get_real_day_costs();
 //    for (unsigned int i = 0; i < NB_DAYS; i++)
 //        std::cout << real_costs[i] << " " << day_costs_lb[i] << std::endl;
+    double sum = 0;
     for (unsigned int i = 0; i < NB_DAYS; i++)
-        if (real_costs[i] != presets.get_day_cost_lb(i)) {
-            if (throw_error)
-                throw std::logic_error("flksrjgf");
-            return false;
-        }
+        sum += real_costs[i];
+
+    double diff = sum - presets.get_float_day_cost_lb();
+    if (diff > 0.01) {
+        if (throw_error)
+            throw std::logic_error("flksrjgf");
+        return false;
+    }
     return true;
-}
-
-int Graph::get_overload_family() const {
-    std::vector<float> real_costs = get_real_day_costs();
-    for (unsigned int i = 0; i < NB_DAYS; i++)
-        if (real_costs[i] < presets.get_day_cost_lb(i))
-            throw std::logic_error("Why is my lower bound wrong ?");
-       // std::cout << real_costs[i] << " " << day_costs_lb[i] << std::endl;
-    std::cout << "Real day costs differences:" << std::endl;
-    std::vector<unsigned int> differences (NB_DAYS, 0);
-    for (unsigned int i = 0; i < NB_DAYS; i++) {
-        differences[i] = floor(real_costs[i] - presets.get_day_cost_lb(i));
-    }
-    print_nicely(differences, 8);
-    std::cout << std::endl;
-    unsigned int maxi = 0;
-    unsigned int i_maxi = 0;
-    for (unsigned int i = 0; i < NB_DAYS; i++){
-        if (differences[i] > maxi){
-            maxi = differences[i];
-            i_maxi = i;
-        }
-    }
-    for (unsigned int i = 0; i < NB_FAMILIES; i++)
-        for (unsigned int k = 0; k < K_MAX; k++)
-            if (full_family_indexes[i] != -1 &&
-                (presets.get_family_data(i, k) == i_maxi || presets.get_family_data(i, k) == i_maxi + 1))
-                return i;
-
-    return -1;
 }
 
 unsigned int Graph::get_const_cost(const unsigned int &i, const unsigned int &k) const {
@@ -623,7 +597,7 @@ Presets Graph::get_solution() {
             if (a_marg->has_flow() && a_const->has_flow()){
                 for (unsigned int k = 0; k < K_MAX; k++){
                     if (a_const->get_cost() == get_const_cost(i, k) && a_marg->get_cost() == get_marg_cost(i, k)){
-                        solution.assign_family(i, k);
+                        solution.assign_family(i, k, false);
                         if (a_const->has_capacity_left()) throw std::logic_error("What is wrong here ?");
                         found = true;
                         break;
@@ -633,9 +607,20 @@ Presets Graph::get_solution() {
         }
         if (!found) throw std::logic_error("What is wrong here ?");
     }
+    solution.compute_all_bounds(); solution.compute_feasibility();
+    if (!solution.is_feasible())
+        throw std::logic_error("flksrjgf");
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         if (!is_an_assignation(solution[i]))
             throw std::logic_error("What is wrong here ?");
+    std::vector<double> real_costs = get_real_day_costs();
+    double sum = 0;
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        sum += real_costs[i];
+    if (abs(sum - solution.get_float_day_cost_lb()) > 0.01)
+        throw std::logic_error("flksrjgf");
+    if (solution.get_presets_costs() + solution.get_day_cost_lb() != get_true_flow_cost())
+        throw std::logic_error("flksrjgf");
     return solution;
 }
 

@@ -19,7 +19,7 @@ private:
 public:
     Family(){}
     Family(const unsigned int &id, const unsigned int &n_people, const std::vector<Day*> &preferred_days, Day* assigned_day);
-    int set_assigned_day(Day* i);
+    std::pair<int, int> set_assigned_day(Day* i);
     Day* get_assigned_day() const{return assigned_day;}
     unsigned int get_nb_people() const{return n_people;}
     unsigned int get_id() const{return id;}
@@ -65,6 +65,7 @@ class Assignment {
 private:
     Family* families;
     Day* days;
+    unsigned int accounting_costs;
 public:
     Assignment(const std::vector<std::vector<unsigned int>> &family_data, const std::vector<unsigned int> &solution);
     void write_solution(const std::string &filename) const;
@@ -79,5 +80,7 @@ public:
     bool has_Friday_like() const;
     unsigned int get_nb_Friday_like() const;
     Day* get_random_Friday_like() const;
+    int set_assigned_day(Family* f, Day* i);
+    int set_assigned_day(const unsigned int& i, const unsigned int &j);
 };
 

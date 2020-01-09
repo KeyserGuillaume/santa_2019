@@ -48,7 +48,7 @@ Family *Day::get_random_removable_family(const bool & is_Friday_like) {
 }
 
 void Day::compute_cost() {
-    cost = is_feasible() ? ceil((N - MIN_NB_PEOPLE_PER_DAY)/400.*pow(N, 0.5+(abs(previous_day->get_N() - N)/50.))) : 0;
+    cost = is_feasible() ? ceil(1 * (N - MIN_NB_PEOPLE_PER_DAY)/400.*pow(N, 0.5+(abs(previous_day->get_N() - N)/50.))) : 0;
     //cost = 10*floor(cost/10.);
     // do not try to change 0 with cost (meaning the cost of an unfeasible day would be the cost when last it was feasible)
     // because then the twin path move will no longer keep the right count of the cost variation (because trying to insert
@@ -123,13 +123,13 @@ void Family::compute_cost() {
     cost = CONSTANT_COST[k] + n_people*MARGINAL_COST[k];
 }
 
-int Family::set_assigned_day(Day* d) {
+std::pair<int, int> Family::set_assigned_day(Day* d) {
     //std::cout << "setting family " << id << " from day " << assigned_day->get_id() << " to day " << d->get_id()<<std::endl;
     int cost_var = d->add_family(this) + assigned_day->remove_family(this);
     unsigned int previous_cost = cost;
     assigned_day = d;
     compute_cost();
-    return cost_var + cost - previous_cost;
+    return std::pair<int, int>(cost - previous_cost, cost_var);
 }
 
 Day *Family::get_best_possible_day() const {
@@ -204,6 +204,7 @@ unsigned int Assignment::get_cost(){
         days[j].compute_cost();
         res2 += days[j].get_cost();
     }
+    accounting_costs = res2;
     //std::cout << res1 << " " << res2 << std::endl;
     return res1 + res2;
 }
@@ -318,4 +319,21 @@ unsigned int Assignment::get_nb_Friday_like() const {
         if (days[i].is_Friday_like())
             count++;
     return count;
+}
+
+int Assignment::set_assigned_day(Family *f, Day *i) {
+    unsigned int prev_acc_cost = accounting_costs;
+    std::pair<int, int> my_pair = f->set_assigned_day(i);
+    accounting_costs += my_pair.second;
+    int accounting_costs_limit = 3000;
+    if (accounting_costs < accounting_costs_limit && prev_acc_cost < accounting_costs_limit)
+       return my_pair.first + my_pair.second;
+    else if (accounting_costs < accounting_costs_limit)
+        return my_pair.first + my_pair.second - 1000;
+    else
+        return my_pair.first + my_pair.second + 1000;
+}
+
+int Assignment::set_assigned_day(const unsigned int &i, const unsigned int &j) {
+    return set_assigned_day(families + i, days + j);
 }

@@ -128,7 +128,7 @@ public:
     std::vector<unsigned int> get_day_occupancy() const;
     uint_pair get_most_dispersed_family() const;
     unsigned int get_largest_least_dispersed_family() const;
-    std::vector<float> get_real_day_costs() const;
+    std::vector<double> get_real_day_costs() const;
     int get_overload_family() const;
 };
 

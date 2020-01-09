@@ -3,7 +3,7 @@
 #include <iostream>
 #include "constants.h"
 #include "tools.h"
-
+#include "day_cost_lower_bound.h"
 
 class Presets {
     const std::vector<std::vector<unsigned int>> &family_data;
@@ -13,9 +13,10 @@ class Presets {
     std::vector<uint_pair> prescribed_occupancy_ub, prescribed_occupancy_lb;
     std::vector<uint_pair> bottleneck_bounds;
     std::vector<std::vector<unsigned int>> k_fold_bottleneck_bounds;
-    std::vector<float> day_costs_lb;
+    std::vector<double> day_costs_lb;
+    double day_cost_DP_lb = 0;
     unsigned int presets_costs = 0;
-    float day_cost_lower_bound = 0;
+    double day_cost_lower_bound = 0;
     bool is_feasible_ = true;
     unsigned int nb_assignments = 0;
     // too annoying to maintain, not used
@@ -28,13 +29,14 @@ class Presets {
     void compute_occupancy_bounds();
     void compute_bottleneck_bounds();
     void compute_k_fold_bottleneck_ub();
-    float get_day_cost_lb_(const unsigned int &i);
-    float get_additional_day_cost_lb(const unsigned int &i);
+    void compute_day_cost_DP_lb();
+    double get_day_cost_lb_(const unsigned int &i);
+    double get_additional_day_cost_lb(const unsigned int &i);
 
 public:
 
     // move up those two once they've been optimized....?
-    void compute_all_bounds();
+    void compute_all_bounds(const bool & including_costs = true);
     void compute_feasibility();
 
     Presets(const std::vector<std::vector<unsigned int>> &family_data);
@@ -50,7 +52,6 @@ public:
 
     std::vector<unsigned int> get_solution() const;
     void write_solution(const std::string &filename) const;
-    void write_solution() const;
     std::string hash() const;
 
     preset get_preset(const unsigned int& i){return presets[i];}
@@ -71,9 +72,8 @@ public:
     unsigned int get_presets_costs() const{return presets_costs;}
     unsigned int get_presets_costs(const unsigned int& day) const;
     unsigned int get_day_cost_lb() const{return std::max(4500, int(floor(day_cost_lower_bound)));}
-    float get_day_cost_lb(const unsigned int &i) const{return day_costs_lb[i];}
+    double get_float_day_cost_lb() const{return day_cost_lower_bound;}
     std::vector<unsigned int> get_largest_unassigned_families() const;
-    int get_largest_unassigned_strategic_family() const;
     uint_pair get_bounds_to_branch() const;
     std::vector<unsigned int> get_all_families_assigned_to_day(const unsigned int& i) const;
     unsigned int get_k(const unsigned int& family_index, const unsigned int& day_index) const;
@@ -81,4 +81,7 @@ public:
     unsigned int get_family_max_size_min_choices() const;
 
     bool should_we_compute_additional_day_costs() const;
+    bool should_we_compute_day_costs_with_DP() const;
+
+    std::vector<std::vector<unsigned int>> get_possible_quantities_per_day() const;
 };
