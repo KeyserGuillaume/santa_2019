@@ -19,6 +19,7 @@ struct greater {
     }
 };
 
+// sort ascending
 template<typename T1, typename T2>
 void sort_by_second(std::vector<std::pair<T1, T2>> &list) {
     std::sort (list.begin(), list.end(), myfunction<T1, T2>);
@@ -46,6 +47,8 @@ struct PriorPath_compare{
 
 std::vector<unsigned int> read_solution(const std::string &filename);
 std::vector<std::vector<unsigned int>> read_instance(const std::string &filename);
+std::vector<uint_pair> read_bounds(const std::string &filename);
+std::vector<uint_pair> read_assignations(const std::string &filename);
 void write_solution_(std::vector<unsigned int> solution, const std::string &filename);
 preset get_assignation_preset(const unsigned int &k);
 preset get_counter_assignation_preset(const unsigned int &k);

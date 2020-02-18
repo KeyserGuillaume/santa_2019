@@ -227,6 +227,7 @@ void Assignment::stats() const {
         days[j].compute_cost();
         res2 += days[j].get_cost();
     }
+    std::cout << "total cost: " << res1 + res2 << std::endl;
     std::cout << get_nb_Friday_like() << " Friday-likes in the solution" << std::endl;
     std::cout << "Families Costs : " << res1 << ";   Accounting Costs : " << res2 << std::endl << std::endl;
 
@@ -274,6 +275,11 @@ void Assignment::stats() const {
     for (unsigned int i = 0; i < NB_DAYS; i++)
         tmp[i] = days[i].get_assignments_costs();
     print_nicely(tmp, 5);
+
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+         tmp[i] = days[i].get_N();
+    print_nicely(tmp, 5);
+
 
 //    std::vector<unsigned int> count_crowdedness(301, 0);
 //    std::vector<unsigned int> cost_crowdedness(301, 0);

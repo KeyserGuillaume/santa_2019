@@ -3,214 +3,35 @@
 #include "LocalSearch.h"
 #include "Presets.h"
 #include "day_sub_problem.h"
+#include "BranchAndBound.h"
 
-std::vector<uint_pair> do_assignments_by_default(Presets& presets){
-    std::vector<uint_pair> assignments_by_default = presets.get_assignments_by_default();
-    for (unsigned int m = 0; m < assignments_by_default.size(); m++)
-        presets.assign_family(assignments_by_default[m].first, assignments_by_default[m].second, false);
-    if (assignments_by_default.size() > 0)
-        presets.compute_all_bounds(); presets.compute_feasibility();
-    return assignments_by_default;
-}
-
-void undo_assignments_by_default(Presets& presets, const std::vector<uint_pair> &assignments_by_default){
-    for (unsigned int m = 0; m < assignments_by_default.size(); m++) {
-        presets.deassign_family(assignments_by_default[m].first, false);
-        for (unsigned int k = 0; k < K_MAX; k++)
-            if (k != assignments_by_default[m].second)
-                presets.forbid_assignment(assignments_by_default[m].first, k, false);
-    }
-    if (assignments_by_default.size() > 0)
-        presets.compute_all_bounds(); presets.compute_feasibility();
-}
-
-unsigned int brute_force(Presets &presets,
-                         unsigned int& nb_nodes,
-                         clock_t &time_graph,
-                         clock_t &time_bounds,
-                         clock_t &time_anticipating,
-                         std::vector<unsigned int> reference_costs,
-                         const FamilyDistribution &distribution){
-    unsigned int cost = presets.get_presets_costs() + presets.get_day_cost_lb();
-    if (cost > BEST_SOLUTION)
-        return cost;
-    if (presets.get_nb_assignments() == NB_FAMILIES){
-        presets.write_solution("flow_solution");
-        return cost;
-    }
-
-    // do the default assignments (families which only have one choice left)
-    std::vector<uint_pair> assignments_by_default = do_assignments_by_default(presets);
-    if (!presets.is_feasible()) {
-        undo_assignments_by_default(presets, assignments_by_default);
-        return BEST_SOLUTION + 1;
-    }
-
-    nb_nodes++;
-    clock_t t0 = clock();
-    Graph G = Graph(presets);
-    G.set_prior_paths(distribution);
-    G.compute_max_flow_min_cost();
-    time_graph += clock() - t0;
-    std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost()
-              << " and with true cost " << G.get_true_flow_cost() << std::endl;
-    cost = G.get_true_flow_cost();
-    if (!G.is_flow_maximal() || cost > BEST_SOLUTION) {
-        // indicate that there is no acceptable solution from this preset
-        undo_assignments_by_default(presets, assignments_by_default);
-        return BEST_SOLUTION + 1;
-    }
-    if (G.get_current_flow() == 0) {
-        G.check_day_costs_are_ok();
-        presets.write_solution("flow_solution");
-        undo_assignments_by_default(presets, assignments_by_default);
-        return cost;
-    }
-
-    if (G.get_most_dispersed_family().second == 1 && G.day_costs_are_ok()) {
-        G.check_day_costs_are_ok();
-        G.get_solution().write_solution("flow_solution");
-        undo_assignments_by_default(presets, assignments_by_default);
-        return cost;
-    }
-
-    unsigned int current_family = (unsigned int)(presets.get_largest_unassigned_families()[0]);
-
-    FamilyDistribution new_distribution = G.get_distribution();
-    preset old_preset = presets.get_preset(current_family);
-    unsigned int min_cost = BEST_SOLUTION + 1;
-    for (unsigned int k_assign = 0; k_assign < K_MAX; k_assign++){
-        if (old_preset[k_assign] == FORBIDDEN)
-            continue;
-
-        // we branch on current_family : here we assign it to k_assign.
-        t0 = clock();
-        presets.assign_family(current_family, k_assign);
-        time_bounds += clock() - t0;
-
-        // only do the next parts if it looks feasible
-        if (presets.is_feasible()) {
-            // anticipation stuff
-            t0 = clock();
-            std::vector<std::pair<unsigned int, preset>> saves_of_presets(0);
-            std::vector<std::vector<unsigned int>> assignations(K_MAX, std::vector<unsigned int>(0));
-            std::vector<std::vector<unsigned int>> counter_assignations(K_MAX, std::vector<unsigned int>(0));
-            for (unsigned int k = 0; k < K_MAX; k++){
-                if (old_preset[k] == FORBIDDEN)
-                    continue;
-                unsigned int current_day = presets.get_family_data(current_family, k);
-                anticipate_on_day(presets, current_day, reference_costs[current_day], assignations[k], counter_assignations[k]);
-                for (unsigned int& family_index: assignations[k]){
-                    saves_of_presets.push_back(std::pair<unsigned int, preset>(family_index, presets.get_preset(family_index)));
-                    presets.assign_family(family_index, current_day, false, false);
-                }
-                for (unsigned int& family_index: counter_assignations[k]){
-                    presets.forbid_assignment(family_index, current_day, false, false);
-                }
-                if (assignations[k].size() > 0 || counter_assignations[k].size() > 0)
-                    presets.compute_all_bounds(); presets.compute_feasibility();
-            }
-            time_anticipating += clock() - t0;
-
-            // we have assigned current_family, and hopefully we've anticipated some assignations
-            // and counter_assignations. Now we call the function to go down in the exploration tree.
-            cost = brute_force(presets, nb_nodes, time_graph, time_bounds, time_anticipating, reference_costs, new_distribution);
-            if (cost < min_cost) {
-                min_cost = cost;
-            }
-
-            // now we will remove the anticipated stuff, it is no longer valid when we assign to another day.
-            t0 = clock();
-            for (unsigned int m = 0; m < saves_of_presets.size(); m++)
-                presets.set_preset(saves_of_presets[m].first, saves_of_presets[m].second, false);
-            for (unsigned int k = 0; k < K_MAX; k++)
-                for (unsigned int s = 0; s < counter_assignations[k].size(); s++)
-                    presets.enable_assignment(counter_assignations[k][s], presets.get_family_data(current_family, k), false, false);
-            presets.compute_all_bounds(); presets.compute_feasibility();
-            time_anticipating += clock() - t0;
-        }
-
-    }
-
-    // now we put the preset for current_family back to what it was before
-    t0 = clock();
-    presets.set_preset(current_family, old_preset);
-    time_bounds += clock() - t0;
-
-    // finally we do the same for the assignments by default done at the beginning
-    undo_assignments_by_default(presets, assignments_by_default);
-    return min_cost;
-}
-
-unsigned int brute_force(Presets &presets,
-                         unsigned int& nb_nodes,
-                         clock_t &time_lagrangian_lb,
-                         clock_t &time_bounds,
-                         const std::vector<float> &lambda,
-                         float &best_cost){
-
-    // do the default assignments (families which only have one choice left)
-    std::vector<uint_pair> assignments_by_default = do_assignments_by_default(presets);
-    float cost = presets.get_presets_costs() + presets.get_day_cost_lb();
-    if (!presets.is_feasible() || cost >= best_cost) {
-        undo_assignments_by_default(presets, assignments_by_default);
-        return best_cost + 1;
-    }
-    if (presets.get_nb_assignments() == NB_FAMILIES){
-        presets.write_solution("lagrangian_bound_solution");
-        undo_assignments_by_default(presets, assignments_by_default);
-        return cost;
-    }
-
-    nb_nodes++;
-    clock_t t0 = clock();
-    std::vector<float> new_lambda(lambda);
-    bool is_primal_feasible;
-    cost = get_lagrangian_lb(presets, new_lambda, is_primal_feasible, true);
-    // there is no proof that this is the local optimal solution but at least this solution is better than best.
-    if (is_primal_feasible) {
-        best_cost = cost;
-        return cost;
-    }
-    if (cost >= best_cost) {
-        // indicate that there is no acceptable solution from this preset
-        undo_assignments_by_default(presets, assignments_by_default);
-        return best_cost + 1;
-    }
-
-    time_lagrangian_lb += clock() - t0;
-
-    unsigned int current_family = (unsigned int)(presets.get_largest_unassigned_families()[0]);
-    new_lambda[current_family] = 0;
-
-    preset old_preset = presets.get_preset(current_family);
-    unsigned int min_cost = best_cost + 1;
-    for (unsigned int k_assign = 0; k_assign < K_MAX; k_assign++){
-        if (old_preset[k_assign] == FORBIDDEN)
-            continue;
-
-        // we branch on current_family : here we assign it to k_assign.
-        t0 = clock();
-        presets.assign_family(current_family, k_assign);
-        time_bounds += clock() - t0;
-
-        // only do the next parts if it looks feasible
-        if (presets.is_feasible()) {
-            cost = brute_force(presets, nb_nodes, time_lagrangian_lb, time_bounds, new_lambda, best_cost);
-            if (cost < min_cost) {
-                min_cost = cost;
-            }
+void compare_solutions(const Assignment &A, const Assignment &B) {
+    for (unsigned int i = 0; i < NB_DAYS; i++)
+        if (A.get_ith_day(i)->get_N() != B.get_ith_day(i)->get_N())
+            std::cout << "Day " << i << ": " << A.get_ith_day(i)->get_N() << " -> " << B.get_ith_day(i)->get_N() << std::endl;
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        unsigned int k_A = A.get_ith_family(i)->get_k();
+        unsigned int k_B = B.get_ith_family(i)->get_k();
+        unsigned int day_A = A.get_ith_family(i)->get_assigned_day()->get_id();
+        unsigned int day_B = B.get_ith_family(i)->get_assigned_day()->get_id();
+        if (k_B != k_A) {
+            std::cout << "Family " << i << " (" << A.get_ith_family(i)->get_nb_people() << "): ";
+            std::cout << day_A << " -> " << day_B << " (" << k_A << " -> " << k_B << ")" << std::endl;
         }
     }
+}
 
-    // now we put the preset for current_family back to what it was before
-    t0 = clock();
-    presets.set_preset(current_family, old_preset);
-    time_bounds += clock() - t0;
+void try_local_search(Assignment &A) {
+    LocalSearch LS(&A);
+    LS.run(10000000, 1000000);
+    //LS.run(1000, 100);
+    //LS.run_on_time_limit(begin + 60*60*CLOCKS_PER_SEC, 1000000);
 
-    // finally we do the same for the assignments by default done at the beginning
-    undo_assignments_by_default(presets, assignments_by_default);
-    return min_cost;
+    std::cout << A.get_cost() << std::endl;
+    A.stats();
+    LS.stats();
+
+    A.write_solution("../../solutions/alocal_search_solution_" + std::to_string(A.get_cost()) + "_.csv");
 }
 
 std::vector<bool> choose_families_2(const Assignment &A,const  Presets &presets, const unsigned int& n1, const unsigned int& n2, const unsigned int& n3) {
@@ -290,6 +111,7 @@ std::vector<bool> choose_families(const Assignment &A,const  Presets &presets, c
     return res;
 }
 
+// takes 50 families, finds the optimal solution when all other families are set, then repeat
 void farm(const Assignment &A, Presets &presets, const std::vector<bool> &useful_families, const unsigned int &nb_times) {
     srand((unsigned int) time(0));
     for (unsigned int t = 0; t < nb_times; t++) {
@@ -314,7 +136,6 @@ void farm(const Assignment &A, Presets &presets, const std::vector<bool> &useful
         presets.compute_feasibility();
 
         std::vector<unsigned int> reference_costs(NB_DAYS, 0);
-        unsigned int i_0 = rand() % NB_DAYS;
         for (unsigned int i = 0; i < NB_DAYS; i++)
             reference_costs[i] = A.get_ith_day(i)->get_assignments_costs();// + ((day_selection[i]) ? 272 : 0);
 
@@ -362,111 +183,122 @@ void farm(const Assignment &A, Presets &presets, const std::vector<bool> &useful
 }
 
 
+void try_anticipating_stuff(const Assignment &A, Presets &presets) {
+    for (int i = NB_DAYS - 1; i >= 1; i--) {
+        Day *day = A.get_ith_day(i);
+        unsigned int cost = day->get_assignments_costs();
+        std::cout << "We try assigning to day " << i << " of cost " << cost << std::endl;
+        std::vector<unsigned int> assignations(0), counter_assignations(0);
+        anticipate_on_day(presets, i, cost, assignations, counter_assignations);
+        for (unsigned int& family_index: assignations){
+            presets.assign_family(family_index, i, false, false);
+        }
+        for (unsigned int& family_index: counter_assignations){
+            presets.forbid_assignment(family_index, i, false, false);
+        }
+        presets.compute_all_bounds(); presets.compute_feasibility();
+    }
+}
+
 int main() {
     clock_t begin = clock();
-    std::vector<unsigned int> initial_solution = read_solution("../../solutions/flow_solution_71441_59883784.csv");
+
+    std::vector<unsigned int> initial_solution = read_solution("../../solutions/rllb_lb_69153.773438");
+//    std::vector<unsigned int> initial_solution = read_solution("../../solutions/rllb_lb_71223.734375");
+//    std::vector<unsigned int> initial_solution = read_solution("../../solutions/flow_solution_71441_8150286.csv");
     //std::vector<unsigned int> initial_solution = read_solution("../../solutions/local_search_solution_71480_.csv");
     //std::vector<unsigned int> initial_solution = read_solution("../../solutions/alocal_search_solution_74253_.csv");
     std::vector<std::vector<unsigned int>> family_data = read_instance(INSTANCE_PATH);
 
     Assignment A(family_data, initial_solution);A.stats();
-//
+
 //    std::vector<unsigned int> initial_solution2 = read_solution("../../solutions/flow_solution_71441_59883784.csv");
 //    Assignment B(family_data, initial_solution2);
-//    for (unsigned int i = 0; i < NB_DAYS; i++)
-//        if (A.get_ith_day(i)->get_N() != B.get_ith_day(i)->get_N())
-//            std::cout << "Day " << i << ": " << A.get_ith_day(i)->get_N() << " -> " << B.get_ith_day(i)->get_N()<<std::endl;
+//    compare_solutions(A, B);
+//    return 0;
+
+//    try_local_search(A); return 0;
+
+    Presets presets (&family_data, "../../limited_presets.txt");
+
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-//        unsigned int k_A = A.get_ith_family(i)->get_k();
-//        unsigned int k_B = B.get_ith_family(i)->get_k();
-//        unsigned int day_A = A.get_ith_family(i)->get_assigned_day()->get_id();
-//        unsigned int day_B = B.get_ith_family(i)->get_assigned_day()->get_id();
-//        if (k_B != k_A) {
-//            std::cout << "Family " << i << " (" << A.get_ith_family(i)->get_nb_people() << "): ";
-//            std::cout << day_A << " -> " << day_B << " (" << k_A << " -> " << k_B << ")" << std::endl;
-//        }
+//        unsigned int k = A.get_ith_family(i)->get_k();
+//        presets.assign_family(i, k, false);
 //    }
-//    return 0;
 
-//    LocalSearch LS(&A);
-//    LS.run(10000000, 1000000);
-//    //LS.run(1000, 100);
-//    //LS.run_on_time_limit(begin + 60*60*CLOCKS_PER_SEC, 1000000);
-//
-//    std::cout << A.get_cost() << std::endl;
-//    A.stats();
-//    LS.stats();
-//
-//    A.write_solution("../../solutions/alocal_search_solution_" + std::to_string(A.get_cost()) + "_.csv");
-//    return 0;
-
-    Presets presets (family_data);
     presets.compute_all_bounds();
-    std::vector<bool> useful_families(NB_FAMILIES, false);
-    //get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71441_79041694.csv"), useful_families);
-    //get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71490_47394673.csv"), useful_families);
-    //get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71490_71088485.csv"), useful_families);
-    //get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71490_81100696.csv"), useful_families);
-    //farm(A, presets, useful_families, 5000); return 0;
-    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
-        unsigned int k = A.get_ith_family(i)->get_k();
-        //if (i % 5 == 0)
-        if (i < 4200)
-        //if (i % 5 != 0)
-        //if (i > 100 && k <= 2)
-        //if (i % 50 != 49 && k <= 2)
-        //if (k <= 1)
-            presets.assign_family(i, k, false);
+    std::vector<uint_pair> true_occupancy_bounds = read_bounds("../../true_occupancy_bounds.txt");
+    for (unsigned int j = 0; j < NB_DAYS; j++){
+        presets.prescribe_occupancy_lb(j, true_occupancy_bounds[j].first);
+        presets.prescribe_occupancy_ub(j, true_occupancy_bounds[j].second);
     }
-    for (unsigned int i = 0; i < NB_DAYS; i++){
-        if (A.get_ith_day(i)->is_Friday_like())
-            presets.prescribe_occupancy_ub(i, MIN_NB_PEOPLE_PER_DAY);
-    }
-    for (unsigned int i = 0; i < NB_DAYS; i++){
-        presets.prescribe_occupancy_lb(i, A.get_ith_day(i)->get_N() - 15);
-        presets.prescribe_occupancy_ub(i, A.get_ith_day(i)->get_N() + 15);
-    }
-    presets.compute_all_bounds(); presets.compute_feasibility();
-    //try_lagrangian_thing(presets); return 0;
-
-//    for (int i = NB_DAYS - 1; i >= 1; i--) {
-//        Day *day = A.get_ith_day(i);
-//        unsigned int cost = day->get_assignments_costs();
-//        std::cout << "We try assigning to day " << i << " of cost " << cost << std::endl;
-//        std::vector<unsigned int> assignations(0), counter_assignations(0);
-//        anticipate_on_day(presets, i, cost, assignations, counter_assignations);
-//        for (unsigned int& family_index: assignations){
-//            presets.assign_family(family_index, i, false, false);
-//        }
-//        for (unsigned int& family_index: counter_assignations){
-//            presets.forbid_assignment(family_index, i, false, false);
-//        }
-//        presets.compute_all_bounds(); presets.compute_feasibility();
+//    std::vector<uint_pair> assignations = read_assignations("../../true_assignations.txt");
+//    for (unsigned int m = 0; m < assignations.size(); m++){
+//        presets.assign_family(assignations[m].first, assignations[m].second, false);
 //    }
+    presets.compute_all_bounds();
+    RLLB rllb(presets);
+    rllb.read_lambda(presets, "../../lambda_2.txt");
+//    presets.prescribe_occupancy_lb(57, 126);
+//    rllb.compute_true_day_occupancy_bounds(presets, 68889); return 0;
+//    rllb.suggest_best_branching_family(presets);return 0;
+//    std::cout << rllb.get_lb() << std::endl; return 0;
+
+//    rllb.carry_out_tests(presets);return 0;
+
+//    compute_true_day_occupancy_bounds(presets, rllb);return 0;
+
+//    compute_compulsory_assignations(presets, rllb);
+//    compute_forbidden_assignations(presets, rllb);
+//    presets.write_presets("../../limited_presets.txt");
+//    rllb.write_lambda("../../lambda_4.txt");
 //    return 0;
 
-    Graph G = Graph(presets);
-    G.compute_max_flow_min_cost();
-    std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost() <<" and with true cost " << G.get_true_flow_cost() << std::endl;
-    G.check_flow();
-    G.show_schedule();
+    // std::vector<bool> useful_families(NB_FAMILIES, false);
+    // get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71441_79041694.csv"), useful_families);
+    // farm(A, presets, useful_families, 5000); return 0;
+//    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+//        unsigned int k = A.get_ith_family(i)->get_k();
+//        if ((i < 4500) &&  k <= 1)
+////        if (i %10 != 9 && k <= 1)
+//        //if (k <= 1)
+//            presets.assign_family(i, k, false);
+//    }
+//    for (unsigned int i = 0; i < NB_DAYS; i++){
+//        if (A.get_ith_day(i)->is_Friday_like())
+//            presets.prescribe_occupancy_ub(i, MIN_NB_PEOPLE_PER_DAY);
+//    }
+//    for (unsigned int i = 0; i < NB_DAYS; i++){
+//        unsigned int delta = 20;
+//        if (i >= 25 && i <= 5*NB_DAYS/8) delta = 200;
+//        if (i == 21) delta = 200;
+//        //if (i == 48) delta = 20; //30, 33, 36 (30: 68775; 33: 68709; 36 very false: > 69200)
+//        // 39: 68793; 42: 68807; 45: 68680; 46, 47, 48: ~68750
+//        presets.prescribe_occupancy_lb(i, (unsigned int)(std::max(125, int(A.get_ith_day(i)->get_N() - delta))));
+//        presets.prescribe_occupancy_ub(i, A.get_ith_day(i)->get_N() + delta);
+//    }
 
-    bool is_primal_feasible;
-    std::vector<float> lambda(NB_FAMILIES, 0);
-    std::cout << "The lagrangian bound ended with " << get_lagrangian_lb(presets, lambda, is_primal_feasible, true) << std::endl;
-    //if (is_primal_feasible) return 0;
 
-    std::vector<unsigned int> reference_costs(NB_DAYS, 0);
-    for (unsigned int i = 0; i < NB_DAYS; i++)
-        reference_costs[i] = A.get_ith_day(i)->get_assignments_costs();
+//    try_anticipating_stuff(A, presets);
+//    return 0;
+
+//    Graph G = Graph(presets);
+//    G.compute_max_flow_min_cost();
+//    std::cout << "flow is " << G.get_current_flow() << " with current cost " << G.get_flow_cost() <<" and with true cost " << G.get_true_flow_cost() << std::endl;
+//    G.check_flow();
+//    G.show_schedule();
+
+//    std::vector<unsigned int> reference_costs(NB_DAYS, 0);
+//    for (unsigned int i = 0; i < NB_DAYS; i++)
+//        reference_costs[i] = A.get_ith_day(i)->get_assignments_costs();
     unsigned int nb_nodes = 0;
     clock_t t0 = clock();
     clock_t time_graph = 0;
     clock_t time_bounds = 0;
-    clock_t time_anticipating = 0;
-    float best_cost = BEST_SOLUTION;
-    std::cout << "Best solution seen is " << brute_force(presets, nb_nodes, time_graph, time_bounds, //time_anticipating,
-                                                         lambda, best_cost) << std::endl;
+//    clock_t time_anticipating = 0;
+    float* best_cost = new float(BEST_SOLUTION);
+    std::cout << "Best solution seen is " << oriented_branch_and_bound(presets, nb_nodes, time_graph, time_bounds, //time_anticipating,
+                                                         rllb, best_cost) << std::endl;
 //                                                         reference_costs, G.get_distribution()) << std::endl;
     std::cout << "Number of nodes is " << nb_nodes << std::endl;
     std::cout << "Time spent computing lagrangian bound is  " << time_graph << std::endl;
@@ -475,6 +307,8 @@ int main() {
     //std::cout << "Time spent anticipating is     " << time_anticipating << std::endl;
     std::cout << clock() - t0 << std::endl;
 
+    delete[] best_cost;
     return 0;
 }
+
 

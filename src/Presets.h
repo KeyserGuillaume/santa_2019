@@ -6,7 +6,7 @@
 #include "day_cost_lower_bound.h"
 
 class Presets {
-    const std::vector<std::vector<unsigned int>> &family_data;
+    std::vector<std::vector<unsigned int>> *family_data;
     std::vector<preset> presets;
     std::vector<bool> is_already_assigned;
     std::vector<unsigned int> preset_occupancy, preset_cardinal, occupancy_lb, occupancy_ub, occupancy_explicit_ub;
@@ -39,7 +39,10 @@ public:
     void compute_all_bounds(const bool & including_costs = true);
     void compute_feasibility();
 
-    Presets(const std::vector<std::vector<unsigned int>> &family_data);
+    Presets () {}
+    Presets& operator=(const Presets& other);
+    Presets (std::vector<std::vector<unsigned int>> *family_data);
+    Presets (std::vector<std::vector<unsigned int>> *family_data, const std::string & filename);
     const preset& operator[](const unsigned int &i) const{return presets[i];}
     void assign_family(const unsigned int &i, const unsigned int &k, const bool &compute_stuff = true, const bool &k_is_relative = true);
     void deassign_family(const unsigned int &i, const bool &compute_bounds = true);
@@ -54,11 +57,11 @@ public:
     void write_solution(const std::string &filename) const;
     std::string hash() const;
 
-    preset get_preset(const unsigned int& i){return presets[i];}
+    preset get_preset(const unsigned int& i) const { return presets[i]; }
     void set_preset(const unsigned int& i, const preset& p, const bool& compute_stuff = true);
 
-    unsigned int get_family_data(const unsigned int &i, const unsigned int &k) const{return family_data[i][k];}
-    unsigned int get_family_size(const unsigned int &i) const{return family_data[i][NB_CHOICES];}
+    unsigned int get_family_data(const unsigned int &i, const unsigned int &k) const{return (*family_data)[i][k];}
+    unsigned int get_family_size(const unsigned int &i) const{return (*family_data)[i][NB_CHOICES];}
     bool is_feasible() const{return is_feasible_;}
     bool is_family_alr_assigned(const unsigned int i) const{return is_already_assigned[i];}
     unsigned int get_nb_assignments() const{return nb_assignments;}
@@ -71,7 +74,7 @@ public:
     unsigned int get_bottleneck_ub(const unsigned int &i, const unsigned int &k) const{return k_fold_bottleneck_bounds[i][k];}
     unsigned int get_presets_costs() const{return presets_costs;}
     unsigned int get_presets_costs(const unsigned int& day) const;
-    unsigned int get_day_cost_lb() const{return std::max(4500, int(floor(day_cost_lower_bound)));}
+    unsigned int get_day_cost_lb() const{return int(floor(day_cost_lower_bound));}
     double get_float_day_cost_lb() const{return day_cost_lower_bound;}
     std::vector<unsigned int> get_largest_unassigned_families() const;
     uint_pair get_bounds_to_branch() const;
@@ -84,4 +87,7 @@ public:
     bool should_we_compute_day_costs_with_DP() const;
 
     std::vector<std::vector<unsigned int>> get_possible_quantities_per_day() const;
+    bool are_there_possible_quantities_per_day() const;
+
+    void write_presets(const std::string& filename);
 };

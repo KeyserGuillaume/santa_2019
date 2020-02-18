@@ -19,6 +19,20 @@ std::vector<unsigned int> read_solution(const std::string &filename){
     return res;
 }
 
+std::vector<uint_pair> read_bounds(const std::string &filename) {
+    std::ifstream targetFile (filename.c_str());
+    if (!targetFile.is_open()) throw std::runtime_error("No targets file found");
+    std::string input_line, entity1, entity2;
+    std::vector<uint_pair> res(0);
+    while (std::getline(targetFile, input_line)){
+        std::stringstream line(input_line);
+        std::getline(line, entity1, ',');
+        std::getline(line, entity2, ',');
+        res.push_back(uint_pair(std::stoi(entity1), std::stoi(entity2)));
+    }
+    return res;
+}
+
 std::vector<std::vector<unsigned int>> read_instance(const std::string &filename){
     std::ifstream targetFile (filename.c_str());
     if (!targetFile.is_open()) throw std::runtime_error("No targets file found");
@@ -119,7 +133,7 @@ std::vector<unsigned int> get_possible_quantities(const std::vector<unsigned int
         std::vector<bool> quantity_is_possible = cleverly_get_possible_quantities(max_allowed, max_per_size);
 
         std::vector<unsigned int> res(0);
-        // push them in this order in order to make the search for best solutions faster.
+        // push them in this order in order to make the search for best day_sub_pb_solutions faster.
         for (int i = max_allowed; i >= int(min_allowed); i--)
             if (quantity_is_possible[i])
                 res.push_back(i);
@@ -181,3 +195,8 @@ void get_differences_between_solutions(const std::vector<unsigned int> &sol1, co
         if (sol1[i] != sol2[i])
             is_different[i] = true;
 }
+
+std::vector<uint_pair> read_assignations(const std::string &filename) {
+    return read_bounds(filename);
+}
+
