@@ -361,11 +361,11 @@ double Presets::get_additional_day_cost_lb(const unsigned int &i) {//return 0;
 }
 
 void Presets::compute_all_bounds(const bool & including_costs) {
-    clock_t t0 = clock();
+//    clock_t t0 = clock();
     compute_occupancy_bounds();
 //    std::cout << "time spent on occupancy_bounds: " << clock() - t0 << std::endl;
 
-    t0 = clock();
+//    t0 = clock();
 //    std::cout << "Nb of families preset and number of people" << std::endl;
 //    print_nicely(preset_occupancy, 5);
     //print_nicely(preset_cardinal, 5);
@@ -375,14 +375,14 @@ void Presets::compute_all_bounds(const bool & including_costs) {
     compute_k_fold_bottleneck_ub();
 //    std::cout << "time spent on k-fold bottleneck bounds: " << clock() - t0 << std::endl;
     if (including_costs) {
-        t0 = clock();
+//        t0 = clock();
         for (unsigned int i = 0; i < NB_DAYS; i++)
             day_costs_lb[i] = get_day_cost_lb_(i);
         day_cost_lower_bound = 0;
         for (unsigned int i = 0; i < NB_DAYS; i++)
             day_cost_lower_bound += day_costs_lb[i];
 //        std::cout << "time spent on computing the day costs lower bound: " << clock() - t0 << std::endl;
-        t0 = clock();
+//        t0 = clock();
         if (should_we_compute_additional_day_costs()) {
 //            std::cout << "day cost lower bound before we do additional day costs is " << day_cost_lower_bound
 //                      << std::endl;
@@ -391,7 +391,7 @@ void Presets::compute_all_bounds(const bool & including_costs) {
         }
 //        std::cout << "time spent on computing the per-family additional day costs: " << clock() - t0 << std::endl;
 //        std::cout << "local lower bounds on the costs from days yield " << day_cost_lower_bound << std::endl;
-        t0 = clock();
+//        t0 = clock();
        // if (should_we_compute_day_costs_with_DP()) {
             compute_day_cost_DP_lb();
 //            std::cout << "time spent on computing the day costs lower bound with DP: " << clock() - t0 << std::endl;
@@ -624,27 +624,27 @@ std::vector<std::vector<unsigned int>> Presets::get_possible_quantities_per_day(
     return possible_quantities_per_day;
 }
 
-Presets &Presets::operator=(const Presets &other) {
-    //family_data = other.family_data;
-    presets = other.presets;
-    is_already_assigned = other.is_already_assigned;
-    preset_occupancy  = other.preset_occupancy;
-    preset_cardinal   = other.preset_cardinal;
-    occupancy_lb   = other.occupancy_lb;
-    occupancy_ub    = other.occupancy_ub ;
-    occupancy_explicit_ub = other.occupancy_explicit_ub;
-    prescribed_occupancy_ub = other.prescribed_occupancy_ub;
-    prescribed_occupancy_lb  = other.prescribed_occupancy_lb;
-    bottleneck_bounds   = other.bottleneck_bounds;
-    k_fold_bottleneck_bounds   = other.k_fold_bottleneck_bounds;
-    day_costs_lb  = other.day_costs_lb;
-    day_cost_DP_lb  = other.day_cost_DP_lb;
-    presets_costs  = other.presets_costs;
-    day_cost_lower_bound    = other.day_cost_lower_bound;
-    is_feasible_    = other.is_feasible_;
-    nb_assignments = other.nb_assignments;
-    sorted_families = other.sorted_families;
-}
+//Presets &Presets::operator=(const Presets &other) {
+//    //family_data = other.family_data;
+//    presets = other.presets;
+//    is_already_assigned = other.is_already_assigned;
+//    preset_occupancy  = other.preset_occupancy;
+//    preset_cardinal   = other.preset_cardinal;
+//    occupancy_lb   = other.occupancy_lb;
+//    occupancy_ub    = other.occupancy_ub ;
+//    occupancy_explicit_ub = other.occupancy_explicit_ub;
+//    prescribed_occupancy_ub = other.prescribed_occupancy_ub;
+//    prescribed_occupancy_lb  = other.prescribed_occupancy_lb;
+//    bottleneck_bounds   = other.bottleneck_bounds;
+//    k_fold_bottleneck_bounds   = other.k_fold_bottleneck_bounds;
+//    day_costs_lb  = other.day_costs_lb;
+//    day_cost_DP_lb  = other.day_cost_DP_lb;
+//    presets_costs  = other.presets_costs;
+//    day_cost_lower_bound    = other.day_cost_lower_bound;
+//    is_feasible_    = other.is_feasible_;
+//    nb_assignments = other.nb_assignments;
+//    sorted_families = other.sorted_families;
+//}
 
 bool Presets::are_there_possible_quantities_per_day() const {
     std::vector<std::vector<unsigned int>> possible_qties_per_day = get_possible_quantities_per_day();

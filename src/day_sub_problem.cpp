@@ -1,10 +1,10 @@
 #include "day_sub_problem.h"
 #include <limits>
 
-void lagrangian_stats(const Presets &presets, const std::vector<float> &lambda,
+void lagrangian_stats(const Presets &presets, const std::vector<double> &lambda,
                       const std::vector<unsigned int> &family_uses_nb);
 
-//void assignments_costs_only_lb(const Presets &presets, const std::vector<float> &lambda,
+//void assignments_costs_only_lb(const Presets &presets, const std::vector<double> &lambda,
 //                               const std::vector<std::vector<unsigned int>> &solutions, int &sum_cost_lbs,
 //                               std::vector<unsigned int> &family_uses_nb);
 
@@ -213,19 +213,19 @@ std::vector<std::vector<unsigned int>> get_indexes_fitting_quantity(const std::v
 bool anticipate_on_day(const Presets &presets, const unsigned int &day, const unsigned int &reference_cost,
                        std::vector<unsigned int> &assignations, std::vector<unsigned int> &counter_assignations) {
     std::vector<std::vector<unsigned int>> solutions;
-    std::vector<std::pair<unsigned int, float>> families_to_consider(0);
+    std::vector<std::pair<unsigned int, double>> families_to_consider(0);
     // sort the families by increasing cost per person
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         for (unsigned int k = 0; k < K_MAX; k++)
             if (presets.get_family_data(i, k) == day && presets[i][k] == ALLOWED)
-                families_to_consider.push_back(std::pair<unsigned int, float>(i, float(CONSTANT_COST[k])/float(presets.get_family_size(i)) + MARGINAL_COST[k]));
+                families_to_consider.push_back(std::pair<unsigned int, double>(i, double(CONSTANT_COST[k])/double(presets.get_family_size(i)) + MARGINAL_COST[k]));
     sort_by_second(families_to_consider);
 
     if (families_to_consider.size() == 0)
         return true;
 
     // group the families by the ~20 levels of cost per person
-    std::vector<float> possible_costs(1, families_to_consider[0].second);
+    std::vector<double> possible_costs(1, families_to_consider[0].second);
     std::vector<std::vector<unsigned int>> possible_sizes(1, std::vector<unsigned int>(0));
     std::vector<std::vector<unsigned int>> corresponding_families(1, std::vector<unsigned int>(0));
     unsigned int current_index = 0;
@@ -256,7 +256,7 @@ bool anticipate_on_day(const Presets &presets, const unsigned int &day, const un
         //throw std::invalid_argument("This was not supposed to happen");
 
     // compute the best solution
-    float best_solution = 2000;
+    double best_solution = 2000;
     find_best_solution(unique_possible_quantities, possible_costs, min_allowed, max_allowed, best_solution, 0, 0, 0);
     std::cout << "Day " << day << ": reference_cost was " << reference_cost << " and best solution was " << best_solution + presets_costs << std::endl;
     unsigned int threshold = (reference_cost > 1.05 * best_solution) ? reference_cost - 15 : reference_cost; // not valid with presets_costs
@@ -340,17 +340,17 @@ bool anticipate_on_day(const Presets &presets, const unsigned int &day, const un
 }
 
 void find_all_equivalent_solutions(const std::vector<std::vector<unsigned int>> &possible_quantities,
-                                   const std::vector<float> &possible_costs,
+                                   const std::vector<double> &possible_costs,
                                    const unsigned int &cost_threshold,
                                    const unsigned int &min_occupancy,
                                    const unsigned int &max_occupancy,
                                    std::vector<std::vector<unsigned int>> &solutions,
                                    std::vector<unsigned int> &current_solution,
                                    const unsigned int &nb_assigned_people,
-                                   const float &current_cost,
+                                   const double &current_cost,
                                    const unsigned int &next_cost_index) {
     if (solutions.size() > 10000) return;
-    float nb_needed_people = (nb_assigned_people > min_occupancy) ? 0 : min_occupancy - nb_assigned_people;
+    double nb_needed_people = (nb_assigned_people > min_occupancy) ? 0 : min_occupancy - nb_assigned_people;
     // this must be changed if there are any negative costs. It would likely go faster with the new version anyway.
     if (current_cost + nb_needed_people * possible_costs[next_cost_index] > cost_threshold)
         return;
@@ -373,14 +373,14 @@ void find_all_equivalent_solutions(const std::vector<std::vector<unsigned int>> 
 }
 
 void find_best_solution(const std::vector<std::vector<unsigned int>> &possible_quantities,
-                        const std::vector<float> &possible_costs,
+                        const std::vector<double> &possible_costs,
                         const unsigned int &min_occupancy,
                         const unsigned int &max_occupancy,
-                        float &best_solution,
+                        double &best_solution,
                         const unsigned int &nb_assigned_people,
-                        const float &current_cost,
+                        const double &current_cost,
                         const unsigned int &next_cost_index) {
-    float nb_needed_people = (nb_assigned_people > min_occupancy) ? 0 : min_occupancy - nb_assigned_people;
+    double nb_needed_people = (nb_assigned_people > min_occupancy) ? 0 : min_occupancy - nb_assigned_people;
     // this must be changed if there are any negative costs. It would likely go faster with the new version anyway.
     if (current_cost + nb_needed_people * possible_costs[next_cost_index] > best_solution)
         return;
@@ -401,7 +401,7 @@ void find_best_solution(const std::vector<std::vector<unsigned int>> &possible_q
     }
 }
 
-void make_incomplete_counter_assignations(std::vector<std::pair<unsigned int, float>> families_to_consider,
+void make_incomplete_counter_assignations(std::vector<std::pair<unsigned int, double>> families_to_consider,
                                           std::vector<std::vector<unsigned int>> corresponding_families,
                                           const std::vector<std::vector<unsigned int>> &solutions,
                                           const unsigned int& day,
@@ -425,11 +425,11 @@ void find_one_optimal_solution(const std::vector<std::vector<unsigned int>> &pos
                                const std::vector<double> &possible_costs, const unsigned int &min_occupancy,
                                const unsigned int &max_occupancy, double &best_solution_cost,
                                std::vector<unsigned int> &best_solution, std::vector<unsigned int> &current_solution,
-                               const unsigned int &nb_assigned_people, const float &current_cost,
+                               const unsigned int &nb_assigned_people, const double &current_cost,
                                const unsigned int &next_cost_index) {
     //unsigned int nb_needed_people = (nb_assigned_people > min_occupancy) ? 0 : min_occupancy - nb_assigned_people;
     unsigned int N = nb_assigned_people;
-    float lb = current_cost;
+    double lb = current_cost;
     for (unsigned int i = next_cost_index; i < possible_costs.size(); i++){
         if (N == max_occupancy) break;
         if (possible_costs[i] > 0 && N >= min_occupancy) break;
@@ -468,7 +468,9 @@ void find_one_optimal_solution(const std::vector<std::vector<unsigned int>> &pos
 // solves knapsack-like day subproblem for one occupancy value with a b&b algorithm. It's very efficient when the lambda are
 // zero because we factorize the families of identical ratio. For some reason it's still quite good when lambda is integer but when
 // lambda is not integer it becomes really slow
-int get_day_lower_bound(const Presets &presets, const unsigned int &day, const unsigned int& min_allowed, const unsigned int& max_allowed, const std::vector<float> &lambda, std::vector<unsigned int> &solution, const bool& print) {
+int get_day_lower_bound(const Presets &presets, const unsigned int &day, const unsigned int &min_allowed,
+                        const unsigned int &max_allowed, const std::vector<double> &lambda,
+                        std::vector<unsigned int> &solution, const bool &print) {
     clock_t t0 = clock();
     std::vector<std::pair<unsigned int, double>> families_to_consider(0);
 
@@ -560,9 +562,11 @@ int get_day_lower_bound(const Presets &presets, const unsigned int &day, const u
 
 // this function uses dynamic programing to solve the knapsack-like day sub-problems in much better time than the b&b way
 // because the b&b way starts over for every possible day occupancy value whereas this method does them all at once.
-// it is likely that with very close optimal ocupancy bounds it becomes slower than the b&b way but not sure with float lambda
-void solve_day_subpb_with_dp(const Presets &presets, const unsigned int &day, const unsigned int& min_allowed, const unsigned int& max_allowed,
-                             const std::vector<float> &lambda, std::vector<std::vector<unsigned int>>& solutions, std::vector<float> &values) {
+// it is likely that with very close optimal ocupancy bounds it becomes slower than the b&b way but not sure with double lambda
+void solve_day_subpb_with_dp(const Presets &presets, const unsigned int &day, const unsigned int &min_allowed,
+                             const unsigned int &max_allowed,
+                             const std::vector<double> &lambda, std::vector<std::vector<unsigned int>> &solutions,
+                             std::vector<double> &values) {
     clock_t t0 = clock();
     std::vector<std::pair<unsigned int, double>> families_to_consider(0);
 
@@ -633,7 +637,7 @@ void solve_day_subpb_with_dp(const Presets &presets, const unsigned int &day, co
 
     // value_functions[s][n] will be the minimal cost to fill the day with n people
     // using only the s first cost levels
-    std::vector<std::vector<float>> value_functions(possible_costs.size(), std::vector<float>(MAX_NB_PEOPLE_PER_DAY + 1, 15000));
+    std::vector<std::vector<double>> value_functions(possible_costs.size(), std::vector<double>(MAX_NB_PEOPLE_PER_DAY + 1, 15000));
     // optimal_quanttities[s][n] will be the quantity of people that should be set
     // at cost level s for n people
     std::vector<std::vector<unsigned int>> optimal_quantities(possible_costs.size(), std::vector<unsigned int>(MAX_NB_PEOPLE_PER_DAY + 1));
@@ -645,7 +649,7 @@ void solve_day_subpb_with_dp(const Presets &presets, const unsigned int &day, co
     // above was initialization, below is computation of the value functions
     for (unsigned int s = 1; s < unique_possible_quantities.size(); s++){
         for (unsigned int N = 0; N <= max_allowed; N++){
-            float cost, min_cost = 15000;
+            double cost, min_cost = 15000;
             for (int m = unique_possible_quantities[s].size() - 1; m >= 0; m--) {
                 unsigned int q = unique_possible_quantities[s][m];
                 if (q > N) break;
@@ -690,15 +694,15 @@ void solve_day_subpb_with_dp(const Presets &presets, const unsigned int &day, co
 //    verify the results with the b&b, single-N version
 //    for (unsigned int N = min_allowed; N <= max_allowed; N++) {
 //        std::vector<unsigned int> solution(0);
-//        float ref = get_day_lower_bound(presets, day, N, N, lambda, solution, false);
-//        float comp = values[N];
+//        double ref = get_day_lower_bound(presets, day, N, N, lambda, solution, false);
+//        double comp = values[N];
 //        if (comp != ref && ref != 15000)
 //            throw std::logic_error("lsmjfr");
 //    }
     return;
 }
 
-void lagrangian_stats(const Presets &presets, const std::vector<float> &lambda,
+void lagrangian_stats(const Presets &presets, const std::vector<double> &lambda,
                       const std::vector<unsigned int> &family_uses_nb) {
     std::vector<unsigned int> histo_family_uses_nb(5, 0);
     std::vector<unsigned int> histo_family_never_used_sizes(7, 0);
@@ -742,6 +746,13 @@ RLLB::RLLB(const Presets & presets) {
 //    lagrangian_stats(presets, lambda, family_uses_nb);
 }
 
+RLLB::RLLB(const Presets &presets, const std::vector<double> &lambda) {
+    initialize_properties(presets);
+    this->lambda = lambda;
+    solve_day_subpbs(presets);
+    compute_lb(presets);
+}
+
 RLLB::RLLB(const RLLB &rllb) {
     possible_Ns = rllb.possible_Ns;
     optimal_Ns_indexes = rllb.optimal_Ns_indexes;
@@ -761,7 +772,7 @@ RLLB::RLLB(const Presets &presets, const RLLB &rllb) {
 }
 
 void RLLB::initialize_properties(const Presets &presets) {
-    lambda = std::vector<float>(NB_FAMILIES, 0);
+    lambda = std::vector<double>(NB_FAMILIES, 0);
     possible_Ns = presets.get_possible_quantities_per_day();
     _is_primal_feasible = false;
     day_sub_pb_solutions = std::vector<std::vector<std::vector<unsigned int>>> (NB_DAYS, std::vector<std::vector<unsigned int>>(0));
@@ -797,7 +808,7 @@ void RLLB::solve_day_subpbs(const Presets &presets, const unsigned int &j, const
 //        if (!drop_prev_sol){
 //            code something to pass the previous solutions as argument
 //        }
-        std::vector<float> values(MAX_NB_PEOPLE_PER_DAY + 1, 15000);
+        std::vector<double> values(MAX_NB_PEOPLE_PER_DAY + 1, 15000);
         solve_day_subpb_with_dp(presets, j, min, max, lambda, solutions, values);
         for (unsigned int n = 0; n < possible_Ns[j].size(); n++) {
             unsigned int N = possible_Ns[j][n] - presets.get_presets_occupancy(j);
@@ -901,7 +912,7 @@ std::vector<std::vector<double>> RLLB::compute_DP_lb(const Presets& presets) {
         }
     }
 
-    float lb_psum_lambda = 100000000;
+    double lb_psum_lambda = 100000000;
     unsigned int argmin;
     for (unsigned int m = 0; m < possible_Ns[0].size(); m++) {
         if (value_functions[0][m] < lb_psum_lambda) {
@@ -911,7 +922,7 @@ std::vector<std::vector<double>> RLLB::compute_DP_lb(const Presets& presets) {
     }
     if (lb_psum_lambda == 10000000) throw std::logic_error("dmlke ?");
 
-    float sum_lambda = 0;
+    double sum_lambda = 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         if (!presets.is_family_alr_assigned(i))
             sum_lambda += lambda[i];
@@ -1016,7 +1027,7 @@ void RLLB::compute_DP_lb_2(const Presets& presets) {
         }
     }
 
-    float lb_psum_lambda = 1000000;
+    double lb_psum_lambda = 1000000;
     unsigned int argmin;
     for (unsigned int m = 0; m < possible_Ns[0].size(); m++) {
         if (value_functions[0][m][0] < lb_psum_lambda){
@@ -1025,7 +1036,7 @@ void RLLB::compute_DP_lb_2(const Presets& presets) {
         }
     }
 
-    float sum_lambda = 0;
+    double sum_lambda = 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         if (!presets.is_family_alr_assigned(i))
             sum_lambda += lambda[i];
@@ -1072,8 +1083,8 @@ void RLLB::optimize_lambda(const Presets &presets, const bool &stop_if_decrease,
     // never do this if we are primal-feasible
     if (_is_primal_feasible) throw std::logic_error("why do this ?");
     unsigned int time_since_last_improvement = 0;
-    float best_lb = lb;
-    std::vector<float> best_lambda = lambda;
+    double best_lb = lb;
+    std::vector<double> best_lambda = lambda;
     std::vector<std::vector<double>> best_sol_values = day_subpb_sol_values;
     std::vector<std::vector<std::vector<unsigned int>>> best_solutions = day_sub_pb_solutions;
     for (unsigned int t = 0; t < 600; t++) {
@@ -1081,14 +1092,14 @@ void RLLB::optimize_lambda(const Presets &presets, const bool &stop_if_decrease,
         // small detail: the weird commented code corresponded to
         // making sure the lambda of family 0 is always equal to 0
         // to avoid having all the lambdas rush off to -inf or +inf.
-//        float alpha = 1/(1. + 20.*t/600.);
-        float alpha = 1/(5 + 15.*t/60.);
-//        float alpha = 1;
+//        double alpha = 1/(1. + 20.*t/600.);
+        double alpha = 1/(5 + 15.*t/60.);
+//        double alpha = 1;
         if (t > 0 && once_only) break;
         std::vector<bool> need_recomputing(NB_DAYS, false);
         for (unsigned int i = 0; i < NB_FAMILIES; i++) {
             if (presets.is_family_alr_assigned(i)) continue;
-            float delta;
+            double delta;
             if (family_uses_nb[i] > 1) {
                 delta = alpha * (family_uses_nb[i] - 1);
             } else if (family_uses_nb[i] < 1) {
@@ -1185,13 +1196,13 @@ unsigned int RLLB::suggest_branching_family(const Presets & presets) const {
 // presets is not const but it should not be modified permanently
 unsigned int RLLB::suggest_best_branching_family(Presets &presets) const {
     std::cout << "Looking for the best branching family" << std::endl;
-    std::vector<std::pair<unsigned int, float>> quick_lb_per_family(0);
+    std::vector<std::pair<unsigned int, double>> quick_lb_per_family(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         if (presets.is_family_alr_assigned(i) || family_uses_nb[i] == 1)
             continue;
         preset old_preset = presets.get_preset(i);
         RLLB specific_rllb;
-        float min_value = 1000000;
+        double min_value = 1000000;
         for (unsigned int k_assign = 0; k_assign < K_MAX; k_assign++) {
             specific_rllb = *this;
             specific_rllb.be_silent = true;
@@ -1211,7 +1222,7 @@ unsigned int RLLB::suggest_best_branching_family(Presets &presets) const {
         }
         presets.set_preset(i, old_preset);
         std::cout << "i: " << i << ", min value: " << min_value << std::endl;
-        quick_lb_per_family.push_back(std::pair<unsigned int, float>(i, min_value));
+        quick_lb_per_family.push_back(std::pair<unsigned int, double>(i, min_value));
 
         if (min_value > lb + 3)  // win some time, give up on best one
             return i;
@@ -1220,13 +1231,43 @@ unsigned int RLLB::suggest_best_branching_family(Presets &presets) const {
     // no need to sort, just iterate ?
     sort_by_second(quick_lb_per_family);
 
-    std::pair<unsigned int, float> best = quick_lb_per_family[quick_lb_per_family.size() - 1];
+    std::pair<unsigned int, double> best = quick_lb_per_family[quick_lb_per_family.size() - 1];
     std::cout << "Best family found is " << best.first << " with cost of " << best.second << std::endl;
     return best.first;
 }
 
 
+std::vector<std::vector<unsigned int>> RLLB::get_selected_choices(const Presets &presets) const {
+    std::vector<std::vector<unsigned int>> selected_choices(NB_FAMILIES, std::vector<unsigned int>(0));
 
+    for (unsigned int j = 0; j < NB_DAYS; j++){
+        std::vector<unsigned int> families_of_the_day = day_sub_pb_solutions[j][optimal_Ns_indexes[j]];
+        for (unsigned int i: families_of_the_day){
+            for (unsigned int k = 0; k < K_MAX; k++){
+                if (presets.get_family_data(i, k) == j) {
+                    selected_choices[i].push_back(k);
+                    break;
+                }
+            }
+        }
+    }
+
+    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
+        if (presets.is_family_alr_assigned(i)) {
+            for (unsigned int k = 0; k < K_MAX; k++){
+                if (presets[i][k] == COMPULSORY) {
+                    selected_choices[i].push_back(k);
+                    break;
+                }
+            }
+        }
+    }
+
+    return selected_choices;
+
+}
+
+// this one could be refactored using the method get_selected_choices
 std::vector<int> RLLB::get_partial_solution(const Presets &presets) const {
     std::vector<int> partial_solution(NB_FAMILIES, -1);
     for (unsigned int i = 0; i < NB_FAMILIES; i++){
@@ -1270,7 +1311,7 @@ void RLLB::write_lambda(const std::string &filename) const {
 // loads pre-computed lambdas (the best I found)
 void RLLB::read_lambda(const Presets &presets, const std::string &filename) {
     initialize_properties(presets);
-    lambda = std::vector<float>(0);
+    lambda = std::vector<double>(0);
     std::ifstream targetFile (filename.c_str());
     if (!targetFile.is_open()) throw std::runtime_error("No targets file found");
     std::string input_line, entity;
@@ -1286,13 +1327,13 @@ void RLLB::read_lambda(const Presets &presets, const std::string &filename) {
 // this identified 3 families which, given the lambda I had, the ~2000 optimal assignations and the optimal occupancy
 // bounds, greatly improved my lower bound (from 68848 to 68856 for each of them)
 void RLLB::carry_out_tests(Presets &presets) {
-    std::vector<float_pair> res(0);
+    std::vector<double_pair> res(0);
     for (unsigned int i = 0; i < NB_FAMILIES; i++) {
         if (presets.is_family_alr_assigned(i) || family_uses_nb[i] == 1)
             continue;
         preset old_preset = presets.get_preset(i);
         RLLB specific_rllb;
-        float min_value = 1000000;
+        double min_value = 1000000;
         for (unsigned int k_assign = 0; k_assign < K_MAX; k_assign++) {
             specific_rllb = *this;
             if (old_preset[k_assign] == FORBIDDEN)
@@ -1309,14 +1350,14 @@ void RLLB::carry_out_tests(Presets &presets) {
         }
         presets.set_preset(i, old_preset);
         std::cout << "lambda is " << lambda[i] << " and min value is " << min_value << std::endl;
-        res.push_back(float_pair(lambda[i], min_value));
+        res.push_back(double_pair(lambda[i], min_value));
     }
     sort_by_second(res);
     for (unsigned int m = 0; m < res.size(); m++)
         std::cout << "lambda is " << res[m].first << " and min value is " << res[m].second << std::endl;
 }
 
-void RLLB::compute_true_day_occupancy_bounds(const Presets &presets, const float &upper_bound) {
+void RLLB::compute_true_day_occupancy_bounds(const Presets &presets, const double &upper_bound) {
     std::vector<std::vector<double>> lower_bounds = compute_DP_lb(presets);
 
     // max in the sense that if a solution's days from j to 100 cost more than max_values(N, j) (all costs included),
@@ -1324,7 +1365,7 @@ void RLLB::compute_true_day_occupancy_bounds(const Presets &presets, const float
     // polynomial time (in fact we get the exact values)
     std::vector<std::vector<double>> max_values(NB_DAYS, std::vector<double>(0));
 
-    float sum_lambda = 0;
+    double sum_lambda = 0;
     for (unsigned int i = 0; i < NB_FAMILIES; i++)
         if (!presets.is_family_alr_assigned(i))
             sum_lambda += lambda[i];

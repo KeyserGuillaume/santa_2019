@@ -4,6 +4,7 @@
 #include "Presets.h"
 #include "day_sub_problem.h"
 #include "BranchAndBound.h"
+#include "dwlb.h"
 
 void compare_solutions(const Assignment &A, const Assignment &B) {
     for (unsigned int i = 0; i < NB_DAYS; i++)
@@ -31,7 +32,7 @@ void try_local_search(Assignment &A) {
     A.stats();
     LS.stats();
 
-    A.write_solution("../../solutions/alocal_search_solution_" + std::to_string(A.get_cost()) + "_.csv");
+    A.write_solution("./solutions/alocal_search_solution_" + std::to_string(A.get_cost()) + "_.csv");
 }
 
 std::vector<bool> choose_families_2(const Assignment &A,const  Presets &presets, const unsigned int& n1, const unsigned int& n2, const unsigned int& n3) {
@@ -203,42 +204,44 @@ void try_anticipating_stuff(const Assignment &A, Presets &presets) {
 int main() {
     clock_t begin = clock();
 
-    std::vector<unsigned int> initial_solution = read_solution("../../solutions/rllb_lb_69153.773438");
-//    std::vector<unsigned int> initial_solution = read_solution("../../solutions/rllb_lb_71223.734375");
-//    std::vector<unsigned int> initial_solution = read_solution("../../solutions/flow_solution_71441_8150286.csv");
-    //std::vector<unsigned int> initial_solution = read_solution("../../solutions/local_search_solution_71480_.csv");
-    //std::vector<unsigned int> initial_solution = read_solution("../../solutions/alocal_search_solution_74253_.csv");
+    std::vector<unsigned int> initial_solution = read_solution("./solutions/rllb_lb_69153.773438");
+//    std::vector<unsigned int> initial_solution = read_solution("./solutions/rllb_lb_71223.734375");
+//    std::vector<unsigned int> initial_solution = read_solution("./solutions/flow_solution_71441_8150286.csv");
+    //std::vector<unsigned int> initial_solution = read_solution("./solutions/local_search_solution_71480_.csv");
+    //std::vector<unsigned int> initial_solution = read_solution("./solutions/alocal_search_solution_74253_.csv");
     std::vector<std::vector<unsigned int>> family_data = read_instance(INSTANCE_PATH);
 
     Assignment A(family_data, initial_solution);A.stats();
 
-//    std::vector<unsigned int> initial_solution2 = read_solution("../../solutions/flow_solution_71441_59883784.csv");
+//    std::vector<unsigned int> initial_solution2 = read_solution("./solutions/flow_solution_71441_59883784.csv");
 //    Assignment B(family_data, initial_solution2);
 //    compare_solutions(A, B);
 //    return 0;
 
 //    try_local_search(A); return 0;
 
-    Presets presets (&family_data, "../../limited_presets.txt");
+    Presets presets (&family_data);//, "./limited_presets.txt");
 
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
 //        unsigned int k = A.get_ith_family(i)->get_k();
 //        presets.assign_family(i, k, false);
 //    }
 
+    test_stuff(presets, initial_solution, 69153.77343); return 0;
+
     presets.compute_all_bounds();
-    std::vector<uint_pair> true_occupancy_bounds = read_bounds("../../true_occupancy_bounds.txt");
+    std::vector<uint_pair> true_occupancy_bounds = read_bounds("./true_occupancy_bounds.txt");
     for (unsigned int j = 0; j < NB_DAYS; j++){
         presets.prescribe_occupancy_lb(j, true_occupancy_bounds[j].first);
         presets.prescribe_occupancy_ub(j, true_occupancy_bounds[j].second);
     }
-//    std::vector<uint_pair> assignations = read_assignations("../../true_assignations.txt");
+//    std::vector<uint_pair> assignations = read_assignations("./true_assignations.txt");
 //    for (unsigned int m = 0; m < assignations.size(); m++){
 //        presets.assign_family(assignations[m].first, assignations[m].second, false);
 //    }
     presets.compute_all_bounds();
     RLLB rllb(presets);
-    rllb.read_lambda(presets, "../../lambda_2.txt");
+    rllb.read_lambda(presets, "./lambda_2.txt");
 //    presets.prescribe_occupancy_lb(57, 126);
 //    rllb.compute_true_day_occupancy_bounds(presets, 68889); return 0;
 //    rllb.suggest_best_branching_family(presets);return 0;
@@ -250,12 +253,12 @@ int main() {
 
 //    compute_compulsory_assignations(presets, rllb);
 //    compute_forbidden_assignations(presets, rllb);
-//    presets.write_presets("../../limited_presets.txt");
-//    rllb.write_lambda("../../lambda_4.txt");
+//    presets.write_presets("./limited_presets.txt");
+//    rllb.write_lambda("./lambda_4.txt");
 //    return 0;
 
     // std::vector<bool> useful_families(NB_FAMILIES, false);
-    // get_differences_between_solutions(initial_solution, read_solution("../../solutions/flow_solution_71441_79041694.csv"), useful_families);
+    // get_differences_between_solutions(initial_solution, read_solution("./solutions/flow_solution_71441_79041694.csv"), useful_families);
     // farm(A, presets, useful_families, 5000); return 0;
 //    for (unsigned int i = 0; i < NB_FAMILIES; i++) {
 //        unsigned int k = A.get_ith_family(i)->get_k();
