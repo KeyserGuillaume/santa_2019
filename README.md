@@ -19,4 +19,6 @@ The lower bounds depends on the dual values we set when we dualized the constrai
 
 My best solutions were found with this method, thanks to a greedy algorithm which is guided by the lower bound.
 
-## There are files in which I tried to implement Dantzig-Wolfe decomposition, with the same solving process as the Lagrangian Relaxation. Unfortunately I never got it to work. I found it rather more difficult to implement. I hoped I could find an optimal solution with it, but I had never worked with this algorithm before and would have needed more time to master it.
+## Unfinished work
+
+dwlb.cpp/.h are files in which I tried to implement Dantzig-Wolfe decomposition, with the same solving process as the Lagrangian Relaxation. Unfortunately I never got it to work. I found it rather more difficult to implement. I hoped I could find an optimal solution with it, but I had never worked with this algorithm before and would have needed more time to master it.
