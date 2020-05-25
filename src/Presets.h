@@ -40,7 +40,6 @@ public:
     void compute_feasibility();
 
     Presets () {}
-    Presets& operator=(const Presets& other);
     Presets (std::vector<std::vector<unsigned int>> *family_data);
     Presets (std::vector<std::vector<unsigned int>> *family_data, const std::string & filename);
     const preset& operator[](const unsigned int &i) const{return presets[i];}

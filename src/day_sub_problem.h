@@ -122,9 +122,10 @@ public:
     void notify_assignment(const Presets &presets, const unsigned int& i, const unsigned int& k_assign);
     void compute_family_uses_nb();
 //    void make_step(const Presets& presets, const double& alpha=1);
-    void optimize_lambda(const Presets &presets, const bool &stop_if_decrease = true, const unsigned int& goal = 1000000, const bool& once_only = false);
+    void optimize_lambda(const Presets &presets, const bool &stop_if_decrease = true, const unsigned int& goal = LARGE_UPPER_BOUND, const bool& once_only = false);
 
     double get_lb() const{return lb;}
+    double get_cost(const Presets& presets) const;
     bool is_primal_feasible() const {return _is_primal_feasible;}
     std::vector<unsigned int> get_solution(const Presets& presets) const;
     unsigned int suggest_branching_family(const Presets & presets) const;
@@ -132,7 +133,7 @@ public:
     void carry_out_tests(Presets & presets);
 
     std::vector<int> get_partial_solution(const Presets& presets) const;
-    std::vector<std::vector<unsigned int>> get_selected_choices(const Presets& presets) const;
+    std::vector<std::vector<char>> get_selected_choices(const Presets& presets) const;
     void show_lagrangian_stats(const Presets& presets) const;
     void write_lambda(const std::string& filename) const;
     void read_lambda(const Presets &presets, const std::string& filename);

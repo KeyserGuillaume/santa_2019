@@ -227,6 +227,7 @@ int main() {
 //        presets.assign_family(i, k, false);
 //    }
 
+//    tiny_test(); return 0;
     test_stuff(presets, initial_solution, 69153.77343); return 0;
 
     presets.compute_all_bounds();

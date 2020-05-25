@@ -17,7 +17,8 @@ const unsigned int NB_DAYS = 100;
 const unsigned int NB_CHOICES = 10;
 const unsigned int MIN_NB_PEOPLE_PER_DAY = 125;
 const unsigned int MAX_NB_PEOPLE_PER_DAY = 300;
-const unsigned int UPPER_BOUND = 10000; // was 80000
+const unsigned int UPPER_BOUND = 10000; // was 80000; I think I put 10000 here (not an upper bound per se) in order to change behaviour of B&B
+const unsigned int LARGE_UPPER_BOUND = 100000; // we know that the instance we work on has optimal value just under 70000 so 100000 is a know UB
 const std::string INSTANCE_PATH = "./instance/family_data.csv";
 
 const unsigned int CONSTANT_COST [] = {0, 50, 50, 100, 200, 200, 300, 300, 400, 500, 500};

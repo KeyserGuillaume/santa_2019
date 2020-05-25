@@ -1237,15 +1237,16 @@ unsigned int RLLB::suggest_best_branching_family(Presets &presets) const {
 }
 
 
-std::vector<std::vector<unsigned int>> RLLB::get_selected_choices(const Presets &presets) const {
-    std::vector<std::vector<unsigned int>> selected_choices(NB_FAMILIES, std::vector<unsigned int>(0));
+std::vector<std::vector<char>> RLLB::get_selected_choices(const Presets &presets) const {
+    std::vector<std::vector<char>> selected_choices(NB_FAMILIES, std::vector<char>(0));
+    unsigned int c = 0;
 
     for (unsigned int j = 0; j < NB_DAYS; j++){
         std::vector<unsigned int> families_of_the_day = day_sub_pb_solutions[j][optimal_Ns_indexes[j]];
         for (unsigned int i: families_of_the_day){
             for (unsigned int k = 0; k < K_MAX; k++){
                 if (presets.get_family_data(i, k) == j) {
-                    selected_choices[i].push_back(k);
+                    selected_choices[i].push_back(k);c++;
                     break;
                 }
             }
@@ -1256,13 +1257,14 @@ std::vector<std::vector<unsigned int>> RLLB::get_selected_choices(const Presets 
         if (presets.is_family_alr_assigned(i)) {
             for (unsigned int k = 0; k < K_MAX; k++){
                 if (presets[i][k] == COMPULSORY) {
-                    selected_choices[i].push_back(k);
+                    selected_choices[i].push_back(k);c++;
                     break;
                 }
             }
         }
     }
 
+    std::cout << "c = " << c << std::endl;
     return selected_choices;
 
 }
@@ -1423,4 +1425,26 @@ void RLLB::compute_true_day_occupancy_bounds(const Presets &presets, const doubl
 
     std::cout << c_continuous << " " << c_discontinuous << std::endl;
 
+}
+
+double RLLB::get_cost(const Presets& presets) const {
+    double cost = 0;
+    for (unsigned int j = 0; j < NB_DAYS; j++){
+        if (j == NB_DAYS - 1) {
+            unsigned int q = possible_Ns[NB_DAYS - 1][optimal_Ns_indexes[NB_DAYS - 1]];
+            cost += get_day_cost(q, q);
+        } else {
+            cost += get_day_cost(possible_Ns[j][optimal_Ns_indexes[j]], possible_Ns[j + 1][optimal_Ns_indexes[j + 1]]);
+        }
+        std::vector<unsigned int> families_of_the_day = day_sub_pb_solutions[j][optimal_Ns_indexes[j]];
+        for (unsigned int i: families_of_the_day){
+            for (unsigned int k = 0; k < K_MAX; k++){
+                if (presets.get_family_data(i, k) == j) {
+                    cost += CONSTANT_COST[k] + MARGINAL_COST[k] * presets.get_family_size(i);
+                    break;
+                }
+            }
+        }
+    }
+    return cost;
 }

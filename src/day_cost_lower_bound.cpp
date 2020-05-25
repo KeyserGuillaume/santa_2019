@@ -6,6 +6,21 @@ double get_day_cost(const unsigned int &i, const unsigned int &ip1) {
     return (i - MIN_NB_PEOPLE_PER_DAY)/400.*pow(i, 0.5 + gap/50.);
 }
 
+double get_day_cost(const std::vector<unsigned int> &occupancies) {
+    if (occupancies.size() != NB_DAYS)
+        throw std::invalid_argument("skjf!");
+    double cost = 0;
+    for (unsigned int j = 0; j < NB_DAYS; j++) {
+        if (j == NB_DAYS - 1) {
+            unsigned int q = occupancies[NB_DAYS - 1];
+            cost += get_day_cost(q, q);
+        } else {
+            cost += get_day_cost(occupancies[j], occupancies[j + 1]);
+        }
+    }
+    return cost;
+}
+
 double get_day_cost_DP_lb(const std::vector<std::vector<unsigned int>> &possible_quantities) {
     std::vector<std::vector<double>> value_functions(NB_DAYS, std::vector<double>(0));
     std::vector<std::vector<unsigned int>> argmin_value_functions(NB_DAYS, std::vector<unsigned int>(0));
