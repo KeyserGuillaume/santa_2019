@@ -5,7 +5,7 @@ Best score 69085.55 - late submission so no rank to reflect it. I worked on this
 
 ## Heuristic
 
-LocalSearch.h/.cpp contain the implementation of a localsearch (restart was coded as an afterthought, there's nothing to hightlight it in the code. I only found disappointing solutions with this method though (score around 73000).
+LocalSearch.h/.cpp contain the implementation of a localsearch (restart was coded as an afterthought, there's nothing to hightlight it in the code). I only found disappointing solutions with this method though (score around 73000).
 
 ## Flow method
 
